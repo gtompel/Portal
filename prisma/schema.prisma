@@ -1,0 +1,263 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  position      String
+  department    String
+  phone         String?
+  avatar        String?
+  initials      String
+  status        UserStatus @default(WORKING)
+  location      String?
+  hireDate      DateTime
+  birthday      DateTime?
+  bio           String?
+  manager       User?      @relation("UserToManager", fields: [managerId], references: [id])
+  managerId     String?
+  subordinates  User[]     @relation("UserToManager")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  // Связи
+  tasks         Task[]     @relation("AssignedTasks")
+  createdTasks  Task[]     @relation("CreatedTasks")
+  documents     Document[] @relation("CreatedDocuments")
+  events        Event[]    @relation("CreatedEvents")
+  sentMessages     Message[]  @relation("SentMessages")
+  receivedMessages Message[]  @relation("ReceivedMessages")
+  eventParticipants EventParticipant[]
+  skills        UserSkill[]
+  education     Education[]
+  experience    Experience[]
+  projects      ProjectMember[]
+}
+
+enum UserStatus {
+  WORKING
+  ON_VACATION
+  REMOTE
+}
+
+model UserSkill {
+  id        String   @id @default(cuid())
+  name      String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+model Education {
+  id           String   @id @default(cuid())
+  degree       String
+  institution  String
+  year         String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Experience {
+  id          String   @id @default(cuid())
+  position    String
+  company     String
+  period      String
+  description String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(NEW)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  assigneeId  String?
+  creator     User      @relation("CreatedTasks", fields: [creatorId], references: [id])
+  creatorId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  comments    TaskComment[]
+}
+
+enum TaskStatus {
+  NEW
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  content   String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  author    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  type        DocumentType
+  description String?
+  url         String
+  size        String
+  creator     User     @relation("CreatedDocuments", fields: [creatorId], references: [id])
+  creatorId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum DocumentType {
+  DOC
+  SPREADSHEET
+  PRESENTATION
+  IMAGE
+  PDF
+  OTHER
+}
+
+model Event {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  date         DateTime
+  startTime    String
+  endTime      String
+  location     String?
+  type         EventType @default(MEETING)
+  creator      User     @relation("CreatedEvents", fields: [creatorId], references: [id])
+  creatorId    String
+  participants EventParticipant[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum EventType {
+  MEETING
+  DEADLINE
+  HOLIDAY
+  VACATION
+}
+
+model EventParticipant {
+  id        String   @id @default(cuid())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  status    ParticipantStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+}
+
+enum ParticipantStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  content     String
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId    String
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId  String
+  read        Boolean  @default(false)
+  attachments MessageAttachment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  type      String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  AnnouncementCategory @default(NEWS)
+  authorId  String
+  likes     Int      @default(0)
+  comments  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AnnouncementCategory {
+  IMPORTANT
+  NEWS
+  EVENT
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  startDate   DateTime
+  endDate     DateTime?
+  members     ProjectMember[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  SUSPENDED
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, userId])
+}
+

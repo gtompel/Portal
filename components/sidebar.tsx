@@ -1,68 +1,120 @@
 "use client"
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import type React from "react"
+
+import { useState } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
   CheckSquare,
   FileText,
   Users,
+  Calendar,
+  MessageSquare,
   Settings,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
+  HelpCircle,
+} from "lucide-react"
 
-const menuItems = [
-  { name: 'Главная', icon: LayoutDashboard, path: '/' },
-  { name: 'Задачи', icon: CheckSquare, path: '/tasks' },
-  { name: 'Документы', icon: FileText, path: '/documents' },
-  { name: 'Команда', icon: Users, path: '/team' },
-  { name: 'Настройки', icon: Settings, path: '/settings' },
-]
+interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false)
+export default function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   return (
-    <div className={cn(
-      "h-screen bg-card border-r flex flex-col transition-all duration-300",
-      collapsed ? "w-16" : "w-64"
-    )}>
-      <div className="p-4 flex items-center justify-between border-b">
-        {!collapsed && (
-          <h1 className="font-semibold text-lg">Портал</h1>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn("ml-auto", collapsed && "mx-auto")}
-        >
-          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+    <div className={cn("relative border-r bg-background", className)}>
+      <div className="flex h-16 items-center justify-between border-b px-4">
+        <Link href="/" className="flex items-center gap-2 font-semibold">
+          {!isCollapsed && <span>Корпоративный портал</span>}
+        </Link>
+        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsCollapsed(!isCollapsed)}>
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          <span className="sr-only">Свернуть меню</span>
         </Button>
       </div>
-      
-      <nav className="flex-1 p-2">
-        {menuItems.map((item) => (
-          <Link
-            key={item.path}
-            href={item.path}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-              "hover:bg-accent hover:text-accent-foreground",
-              pathname === item.path && "bg-accent text-accent-foreground",
-              collapsed && "justify-center"
-            )}
-          >
-            <item.icon size={20} />
-            {!collapsed && <span>{item.name}</span>}
+      <ScrollArea className="h-[calc(100vh-4rem)]">
+        <div className="flex flex-col gap-2 p-2">
+          <Link href="/" passHref>
+            <Button
+              variant={pathname === "/" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Главная</span>}
+            </Button>
           </Link>
-        ))}
-      </nav>
+          <Link href="/tasks" passHref>
+            <Button
+              variant={pathname === "/tasks" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <CheckSquare className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Задачи</span>}
+            </Button>
+          </Link>
+          <Link href="/documents" passHref>
+            <Button
+              variant={pathname === "/documents" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Документы</span>}
+            </Button>
+          </Link>
+          <Link href="/employees" passHref>
+            <Button
+              variant={pathname === "/employees" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Сотрудники</span>}
+            </Button>
+          </Link>
+          <Link href="/calendar" passHref>
+            <Button
+              variant={pathname === "/calendar" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Календарь</span>}
+            </Button>
+          </Link>
+          <Link href="/messages" passHref>
+            <Button
+              variant={pathname === "/messages" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Сообщения</span>}
+            </Button>
+          </Link>
+          <Link href="/settings" passHref>
+            <Button
+              variant={pathname === "/settings" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Настройки</span>}
+            </Button>
+          </Link>
+          <Link href="/help" passHref>
+            <Button
+              variant={pathname === "/help" ? "secondary" : "ghost"}
+              className={cn("justify-start", isCollapsed && "justify-center")}
+            >
+              <HelpCircle className="mr-2 h-4 w-4" />
+              {!isCollapsed && <span>Помощь</span>}
+            </Button>
+          </Link>
+        </div>
+      </ScrollArea>
     </div>
   )
 }
+
