@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -17,18 +15,65 @@ import {
   Users,
   Calendar,
   MessageSquare,
+  BarChart,
   Settings,
   HelpCircle,
 } from "lucide-react"
 
-interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
-
-export default function Sidebar({ className }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(false)
 
+  const routes = [
+    {
+      href: "/",
+      icon: LayoutDashboard,
+      title: "Главная",
+    },
+    {
+      href: "/tasks",
+      icon: CheckSquare,
+      title: "Задачи",
+    },
+    {
+      href: "/documents",
+      icon: FileText,
+      title: "Документы",
+    },
+    {
+      href: "/employees",
+      icon: Users,
+      title: "Сотрудники",
+    },
+    {
+      href: "/calendar",
+      icon: Calendar,
+      title: "Календарь",
+    },
+    {
+      href: "/messages",
+      icon: MessageSquare,
+      title: "Сообщения",
+    },
+    {
+      href: "/analytics",
+      icon: BarChart,
+      title: "Аналитика",
+    },
+    {
+      href: "/settings",
+      icon: Settings,
+      title: "Настройки",
+    },
+    {
+      href: "/help",
+      icon: HelpCircle,
+      title: "Помощь",
+    },
+  ]
+
   return (
-    <div className={cn("relative border-r bg-background", className)}>
+    <div className="relative border-r bg-background">
       <div className="flex h-16 items-center justify-between border-b px-4">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           {!isCollapsed && <span>Корпоративный портал</span>}
@@ -40,78 +85,17 @@ export default function Sidebar({ className }: SidebarProps) {
       </div>
       <ScrollArea className="h-[calc(100vh-4rem)]">
         <div className="flex flex-col gap-2 p-2">
-          <Link href="/" passHref>
-            <Button
-              variant={pathname === "/" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Главная</span>}
-            </Button>
-          </Link>
-          <Link href="/tasks" passHref>
-            <Button
-              variant={pathname === "/tasks" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <CheckSquare className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Задачи</span>}
-            </Button>
-          </Link>
-          <Link href="/documents" passHref>
-            <Button
-              variant={pathname === "/documents" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Документы</span>}
-            </Button>
-          </Link>
-          <Link href="/employees" passHref>
-            <Button
-              variant={pathname === "/employees" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Сотрудники</span>}
-            </Button>
-          </Link>
-          <Link href="/calendar" passHref>
-            <Button
-              variant={pathname === "/calendar" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Календарь</span>}
-            </Button>
-          </Link>
-          <Link href="/messages" passHref>
-            <Button
-              variant={pathname === "/messages" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Сообщения</span>}
-            </Button>
-          </Link>
-          <Link href="/settings" passHref>
-            <Button
-              variant={pathname === "/settings" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Настройки</span>}
-            </Button>
-          </Link>
-          <Link href="/help" passHref>
-            <Button
-              variant={pathname === "/help" ? "secondary" : "ghost"}
-              className={cn("justify-start", isCollapsed && "justify-center")}
-            >
-              <HelpCircle className="mr-2 h-4 w-4" />
-              {!isCollapsed && <span>Помощь</span>}
-            </Button>
-          </Link>
+          {routes.map((route) => (
+            <Link key={route.href} href={route.href} passHref>
+              <Button
+                variant={pathname === route.href ? "secondary" : "ghost"}
+                className={cn("justify-start", isCollapsed && "justify-center")}
+              >
+                <route.icon className="mr-2 h-4 w-4" />
+                {!isCollapsed && <span>{route.title}</span>}
+              </Button>
+            </Link>
+          ))}
         </div>
       </ScrollArea>
     </div>

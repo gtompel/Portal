@@ -1,107 +1,275 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useSession } from "next-auth/react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Textarea } from "@/components/ui/textarea"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 
+// Типы данных
 type Task = {
   id: string
   title: string
-  assignee: string
-  status: "новая" | "в работе" | "на проверке" | "завершена"
-  priority: "низкий" | "средний" | "высокий"
-  dueDate: string
-}
-
-const tasks: Task[] = [
-  {
-    id: "TASK-1001",
-    title: "Подготовить отчет за квартал",
-    assignee: "Иван Петров",
-    status: "в работе",
-    priority: "высокий",
-    dueDate: "2025-04-10",
-  },
-  {
-    id: "TASK-1002",
-    title: "Обновить документацию проекта",
-    assignee: "Мария Сидорова",
-    status: "на проверке",
-    priority: "средний",
-    dueDate: "2025-04-15",
-  },
-  {
-    id: "TASK-1003",
-    title: "Провести собеседования с кандидатами",
-    assignee: "Алексей Иванов",
-    status: "новая",
-    priority: "средний",
-    dueDate: "2025-04-08",
-  },
-  {
-    id: "TASK-1004",
-    title: "Подготовить презентацию для клиента",
-    assignee: "Елена Смирнова",
-    status: "завершена",
-    priority: "высокий",
-    dueDate: "2025-04-05",
-  },
-  {
-    id: "TASK-1005",
-    title: "Обновить план маркетинга",
-    assignee: "Дмитрий Козлов",
-    status: "в работе",
-    priority: "низкий",
-    dueDate: "2025-04-20",
-  },
-]
-
-const getStatusColor = (status: Task["status"]) => {
-  switch (status) {
-    case "новая":
-      return "bg-blue-500"
-    case "в работе":
-      return "bg-yellow-500"
-    case "на проверке":
-      return "bg-purple-500"
-    case "завершена":
-      return "bg-green-500"
-    default:
-      return "bg-gray-500"
-  }
-}
-
-const getPriorityColor = (priority: Task["priority"]) => {
-  switch (priority) {
-    case "низкий":
-      return "bg-green-100 text-green-800"
-    case "средний":
-      return "bg-yellow-100 text-yellow-800"
-    case "высокий":
-      return "bg-red-100 text-red-800"
-    default:
-      return "bg-gray-100 text-gray-800"
-  }
+  assignee: {
+    id: string
+    name: string
+    avatar?: string
+    initials: string
+  } | null
+  status: "NEW" | "IN_PROGRESS" | "REVIEW" | "COMPLETED"
+  priority: "LOW" | "MEDIUM" | "HIGH"
+  dueDate: string | null
+  createdAt: string
 }
 
 export function TaskList() {
+  const { data: session } = useSession()
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isAddingTask, setIsAddingTask] = useState(false)
 
-  const filteredTasks = tasks.filter((task) => {
-    const matchesSearch =
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.assignee.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter
-
-    return matchesSearch && matchesStatus
+  // Форма создания задачи
+  const taskSchema = z.object({
+    title: z.string().min(3, "Название должно содержать минимум 3 символа"),
+    description: z.string().optional(),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
+    dueDate: z.string().optional(),
+    assigneeId: z.string().optional(),
   })
+
+  const form = useForm<z.infer<typeof taskSchema>>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      priority: "MEDIUM",
+      dueDate: "",
+      assigneeId: "",
+    },
+  })
+
+  useEffect(() => {
+    fetchTasks()
+  }, [])
+
+  useEffect(() => {
+    if (tasks.length) {
+      filterTasks()
+    }
+  }, [searchTerm, statusFilter, tasks])
+
+  const fetchTasks = async () => {
+    try {
+      setIsLoading(true)
+
+      // В реальном приложении здесь должен быть запрос к API
+      // const response = await fetch('/api/tasks');
+      // const data = await response.json();
+
+      // Временно используем заглушку для демонстрации
+      // В реальном коде эти данные должны приходить с сервера
+      setTimeout(() => {
+        const mockTasks: Task[] = [
+          {
+            id: "task-1",
+            title: "Подготовить отчет за квартал",
+            assignee: {
+              id: "user-1",
+              name: "Иван Петров",
+              initials: "ИП",
+            },
+            status: "IN_PROGRESS",
+            priority: "HIGH",
+            dueDate: "2025-04-10",
+            createdAt: "2025-03-15",
+          },
+          {
+            id: "task-2",
+            title: "Обновить документацию проекта",
+            assignee: {
+              id: "user-2",
+              name: "Мария Сидорова",
+              initials: "МС",
+            },
+            status: "REVIEW",
+            priority: "MEDIUM",
+            dueDate: "2025-04-15",
+            createdAt: "2025-03-20",
+          },
+          {
+            id: "task-3",
+            title: "Провести собеседования с кандидатами",
+            assignee: {
+              id: "user-3",
+              name: "Алексей Иванов",
+              initials: "АИ",
+            },
+            status: "NEW",
+            priority: "MEDIUM",
+            dueDate: "2025-04-08",
+            createdAt: "2025-03-25",
+          },
+        ]
+
+        setTasks(mockTasks)
+        setFilteredTasks(mockTasks)
+        setIsLoading(false)
+      }, 1000)
+    } catch (err) {
+      console.error("Ошибка при загрузке задач:", err)
+      setError("Не удалось загрузить задачи")
+      setIsLoading(false)
+    }
+  }
+
+  const filterTasks = () => {
+    let result = [...tasks]
+
+    if (searchTerm) {
+      result = result.filter(
+        (task) =>
+          task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          task.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          task.assignee?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          false,
+      )
+    }
+
+    if (statusFilter !== "all") {
+      result = result.filter((task) => task.status === statusFilter)
+    }
+
+    setFilteredTasks(result)
+  }
+
+  const getStatusColor = (status: Task["status"]) => {
+    switch (status) {
+      case "NEW":
+        return "bg-blue-500"
+      case "IN_PROGRESS":
+        return "bg-yellow-500"
+      case "REVIEW":
+        return "bg-purple-500"
+      case "COMPLETED":
+        return "bg-green-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+
+  const getPriorityColor = (priority: Task["priority"]) => {
+    switch (priority) {
+      case "LOW":
+        return "bg-green-100 text-green-800"
+      case "MEDIUM":
+        return "bg-yellow-100 text-yellow-800"
+      case "HIGH":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getStatusText = (status: Task["status"]) => {
+    switch (status) {
+      case "NEW":
+        return "Новая"
+      case "IN_PROGRESS":
+        return "В работе"
+      case "REVIEW":
+        return "На проверке"
+      case "COMPLETED":
+        return "Завершена"
+      default:
+        return status
+    }
+  }
+
+  const getPriorityText = (priority: Task["priority"]) => {
+    switch (priority) {
+      case "LOW":
+        return "Низкий"
+      case "MEDIUM":
+        return "Средний"
+      case "HIGH":
+        return "Высокий"
+      default:
+        return priority
+    }
+  }
+
+  const createTask = async (data: z.infer<typeof taskSchema>) => {
+    setIsAddingTask(true)
+
+    try {
+      // В реальном приложении здесь должен быть запрос к API
+      // const response = await fetch('/api/tasks', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     ...data,
+      //     creatorId: session?.user?.id
+      //   })
+      // });
+      // const newTask = await response.json();
+
+      // Временная имитация создания задачи
+      setTimeout(() => {
+        const newTask: Task = {
+          id: `task-${Date.now()}`,
+          title: data.title,
+          assignee: null,
+          status: "NEW",
+          priority: data.priority,
+          dueDate: data.dueDate || null,
+          createdAt: new Date().toISOString(),
+        }
+
+        setTasks((prev) => [newTask, ...prev])
+        setIsAddingTask(false)
+        form.reset()
+      }, 1000)
+    } catch (err) {
+      console.error("Ошибка при создании задачи:", err)
+      setIsAddingTask(false)
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="p-6 bg-destructive/10 rounded-md">
+          <h3 className="font-semibold">Ошибка загрузки</h3>
+          <p>{error}</p>
+          <Button onClick={fetchTasks} className="mt-2">
+            Повторить
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -123,17 +291,108 @@ export function TaskList() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все статусы</SelectItem>
-              <SelectItem value="новая">Новая</SelectItem>
-              <SelectItem value="в работе">В работе</SelectItem>
-              <SelectItem value="на проверке">На проверке</SelectItem>
-              <SelectItem value="завершена">Завершена</SelectItem>
+              <SelectItem value="NEW">Новая</SelectItem>
+              <SelectItem value="IN_PROGRESS">В работе</SelectItem>
+              <SelectItem value="REVIEW">На проверке</SelectItem>
+              <SelectItem value="COMPLETED">Завершена</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <Button className="gap-1">
-          <Plus className="h-4 w-4" />
-          <span>Новая задача</span>
-        </Button>
+
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="gap-1">
+              <Plus className="h-4 w-4" />
+              <span>Новая задача</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Создать новую задачу</DialogTitle>
+              <DialogDescription>
+                Заполните информацию о задаче. Поля, отмеченные *, обязательны для заполнения.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(createTask)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Название задачи *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Введите название задачи" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Описание</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Опишите задачу подробнее" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex gap-4">
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Приоритет *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Выберите приоритет" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="LOW">Низкий</SelectItem>
+                            <SelectItem value="MEDIUM">Средний</SelectItem>
+                            <SelectItem value="HIGH">Высокий</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Срок выполнения</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button type="submit" disabled={isAddingTask}>
+                    {isAddingTask && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Создать задачу
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="rounded-md border">
@@ -149,23 +408,50 @@ export function TaskList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTasks.length > 0 ? (
+            {isLoading ? (
+              Array(5)
+                .fill(0)
+                .map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Skeleton className="h-4 w-24 ml-auto" />
+                    </TableCell>
+                  </TableRow>
+                ))
+            ) : filteredTasks.length > 0 ? (
               filteredTasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell className="font-medium">{task.id}</TableCell>
                   <TableCell>{task.title}</TableCell>
-                  <TableCell>{task.assignee}</TableCell>
+                  <TableCell>{task.assignee?.name || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`${getStatusColor(task.status)} text-white`}>
-                      {task.status}
+                      {getStatusText(task.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={getPriorityColor(task.priority)}>
-                      {task.priority}
+                      {getPriorityText(task.priority)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{new Date(task.dueDate).toLocaleDateString("ru-RU")}</TableCell>
+                  <TableCell className="text-right">
+                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "-"}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (

@@ -1,6 +1,7 @@
 "use client"
 
 import { Bell, Search, Settings } from "lucide-react"
+import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -14,6 +15,17 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function Header() {
+  const { data: session } = useSession()
+
+  // Извлекаем инициалы из имени пользователя
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+  }
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
       <div className="hidden md:flex md:flex-1">
@@ -37,25 +49,34 @@ export default function Header() {
           <Settings className="h-4 w-4" />
           <span className="sr-only">Настройки</span>
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src="/placeholder-user.jpg" alt="Иван Петров" />
-                <AvatarFallback>ИП</AvatarFallback>
-              </Avatar>
-              <span className="sr-only">Профиль</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Профиль</DropdownMenuItem>
-            <DropdownMenuItem>Настройки</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Выйти</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {session?.user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={session.user.image || ""} alt={session.user.name || ""} />
+                  <AvatarFallback>{session.user.name ? getInitials(session.user.name) : "U"}</AvatarFallback>
+                </Avatar>
+                <span className="sr-only">Профиль</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{session.user.name || "Пользователь"}</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                {session.user.email || ""}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <a href="/profile">Профиль</a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href="/settings">Настройки</a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/auth/login" })}>Выйти</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </header>
   )
