@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -15,31 +16,98 @@ import {
   Cell,
   Legend,
 } from "recharts"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Loader2 } from "lucide-react"
 
-const taskData = [
-  { name: "Янв", новые: 4, выполненные: 2 },
-  { name: "Фев", новые: 3, выполненные: 4 },
-  { name: "Мар", новые: 5, выполненные: 3 },
-  { name: "Апр", новые: 7, выполненные: 5 },
-  { name: "Май", новые: 2, выполненные: 6 },
-  { name: "Июн", новые: 6, выполненные: 4 },
-]
-
-const statusData = [
-  { name: "Новые", value: 12, color: "#3b82f6" },
-  { name: "В работе", value: 8, color: "#eab308" },
-  { name: "На проверке", value: 4, color: "#a855f7" },
-  { name: "Завершенные", value: 16, color: "#22c55e" },
-]
-
-const documentData = [
-  { name: "Документы", value: 45, color: "#3b82f6" },
-  { name: "Таблицы", value: 30, color: "#22c55e" },
-  { name: "Презентации", value: 15, color: "#f97316" },
-  { name: "Изображения", value: 10, color: "#a855f7" },
-]
+type OverviewData = {
+  taskData: {
+    name: string
+    новые: number
+    выполненные: number
+  }[]
+  statusData: {
+    name: string
+    value: number
+    color: string
+  }[]
+  documentData: {
+    name: string
+    value: number
+    color: string
+  }[]
+}
 
 export function Overview() {
+  const [data, setData] = useState<OverviewData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+
+        // В реальном приложении здесь должен быть запрос к API
+        const response = await fetch("/api/dashboard/overview")
+
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить данные обзора")
+        }
+
+        const data = await response.json()
+        setData(data)
+      } catch (err) {
+        console.error("Ошибка при загрузке данных обзора:", err)
+        setError("Не удалось загрузить данные обзора")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (error) {
+    return (
+      <Card className="col-span-4">
+        <CardHeader>
+          <CardTitle>Ошибка загрузки данных</CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <Skeleton className="h-6 w-64" />
+            <Skeleton className="h-4 w-80" />
+          </CardHeader>
+          <CardContent className="pl-2">
+            <div className="h-[350px] flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-3">
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-full mb-4" />
+            <div className="h-[300px] flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
       <Card className="col-span-4">
@@ -49,7 +117,7 @@ export function Overview() {
         </CardHeader>
         <CardContent className="pl-2">
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={taskData}>
+            <BarChart data={data?.taskData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -77,7 +145,7 @@ export function Overview() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={statusData}
+                      data={data?.statusData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -86,7 +154,7 @@ export function Overview() {
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
-                      {statusData.map((entry, index) => (
+                      {data?.statusData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -101,7 +169,7 @@ export function Overview() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={documentData}
+                      data={data?.documentData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -110,7 +178,7 @@ export function Overview() {
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
-                      {documentData.map((entry, index) => (
+                      {data?.documentData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>

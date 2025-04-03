@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { useToast } from "@/hooks/use-toast"
 
 // Типы данных
 type Task = {
@@ -42,6 +43,7 @@ type Task = {
 
 export function TaskList() {
   const { data: session } = useSession()
+  const { toast } = useToast()
   const [tasks, setTasks] = useState<Task[]>([])
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -84,62 +86,38 @@ export function TaskList() {
     try {
       setIsLoading(true)
 
-      // В реальном приложении здесь должен быть запрос к API
-      // const response = await fetch('/api/tasks');
-      // const data = await response.json();
+      const response = await fetch("/api/tasks")
 
-      // Временно используем заглушку для демонстрации
-      // В реальном коде эти данные должны приходить с сервера
-      setTimeout(() => {
-        const mockTasks: Task[] = [
-          {
-            id: "task-1",
-            title: "Подготовить отчет за квартал",
-            assignee: {
-              id: "user-1",
-              name: "Иван Петров",
-              initials: "ИП",
-            },
-            status: "IN_PROGRESS",
-            priority: "HIGH",
-            dueDate: "2025-04-10",
-            createdAt: "2025-03-15",
-          },
-          {
-            id: "task-2",
-            title: "Обновить документацию проекта",
-            assignee: {
-              id: "user-2",
-              name: "Мария Сидорова",
-              initials: "МС",
-            },
-            status: "REVIEW",
-            priority: "MEDIUM",
-            dueDate: "2025-04-15",
-            createdAt: "2025-03-20",
-          },
-          {
-            id: "task-3",
-            title: "Провести собеседования с кандидатами",
-            assignee: {
-              id: "user-3",
-              name: "Алексей Иванов",
-              initials: "АИ",
-            },
-            status: "NEW",
-            priority: "MEDIUM",
-            dueDate: "2025-04-08",
-            createdAt: "2025-03-25",
-          },
-        ]
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить задачи")
+      }
 
-        setTasks(mockTasks)
-        setFilteredTasks(mockTasks)
-        setIsLoading(false)
-      }, 1000)
+      const data = await response.json()
+
+      // Преобразуем данные в нужный формат
+      const formattedTasks = data.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        assignee: item.assignee
+          ? {
+              id: item.assignee.id,
+              name: item.assignee.name,
+              avatar: item.assignee.avatar,
+              initials: item.assignee.initials || getInitials(item.assignee.name),
+            }
+          : null,
+        status: item.status,
+        priority: item.priority,
+        dueDate: item.dueDate,
+        createdAt: item.createdAt,
+      }))
+
+      setTasks(formattedTasks)
+      setFilteredTasks(formattedTasks)
     } catch (err) {
       console.error("Ошибка при загрузке задач:", err)
       setError("Не удалось загрузить задачи")
+    } finally {
       setIsLoading(false)
     }
   }
@@ -220,39 +198,79 @@ export function TaskList() {
     }
   }
 
+  // Функция для получения инициалов из имени
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+  }
+
   const createTask = async (data: z.infer<typeof taskSchema>) => {
+    if (!session?.user?.id) {
+      toast({
+        title: "Ошибка",
+        description: "Вы должны быть авторизованы для создания задач",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsAddingTask(true)
 
     try {
-      // В реальном приложении здесь должен быть запрос к API
-      // const response = await fetch('/api/tasks', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     ...data,
-      //     creatorId: session?.user?.id
-      //   })
-      // });
-      // const newTask = await response.json();
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          creatorId: session.user.id,
+        }),
+      })
 
-      // Временная имитация создания задачи
-      setTimeout(() => {
-        const newTask: Task = {
-          id: `task-${Date.now()}`,
-          title: data.title,
-          assignee: null,
-          status: "NEW",
-          priority: data.priority,
-          dueDate: data.dueDate || null,
-          createdAt: new Date().toISOString(),
-        }
+      if (!response.ok) {
+        throw new Error("Не удалось создать задачу")
+      }
 
-        setTasks((prev) => [newTask, ...prev])
-        setIsAddingTask(false)
-        form.reset()
-      }, 1000)
+      const newTask = await response.json()
+
+      // Добавляем новую задачу в список
+      const formattedTask: Task = {
+        id: newTask.id,
+        title: newTask.title,
+        assignee: newTask.assignee
+          ? {
+              id: newTask.assignee.id,
+              name: newTask.assignee.name,
+              avatar: newTask.assignee.avatar,
+              initials: newTask.assignee.initials || getInitials(newTask.assignee.name),
+            }
+          : null,
+        status: newTask.status,
+        priority: newTask.priority,
+        dueDate: newTask.dueDate,
+        createdAt: newTask.createdAt,
+      }
+
+      setTasks((prev) => [formattedTask, ...prev])
+
+      toast({
+        title: "Успешно",
+        description: "Задача успешно создана",
+      })
+
+      form.reset()
     } catch (err) {
       console.error("Ошибка при создании задачи:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать задачу",
+        variant: "destructive",
+      })
+    } finally {
       setIsAddingTask(false)
     }
   }

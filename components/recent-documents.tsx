@@ -34,6 +34,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/hooks/use-toast"
 
 // Типы данных
 type Document = {
@@ -50,6 +51,7 @@ type Document = {
 
 export function RecentDocuments() {
   const { data: session } = useSession()
+  const { toast } = useToast()
   const [documents, setDocuments] = useState<Document[]>([])
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -89,56 +91,33 @@ export function RecentDocuments() {
     try {
       setIsLoading(true)
 
-      // В реальном приложении здесь должен быть запрос к API
-      // const response = await fetch('/api/documents');
-      // const data = await response.json();
+      const response = await fetch("/api/documents")
 
-      // Временно используем заглушку для демонстрации
-      // В реальном коде эти данные должны приходить с сервера
-      setTimeout(() => {
-        const mockDocuments: Document[] = [
-          {
-            id: "DOC-1001",
-            name: "Финансовый отчет Q1 2025.xlsx",
-            type: "SPREADSHEET",
-            owner: {
-              id: "user-1",
-              name: "Иван Петров",
-            },
-            updatedAt: "2025-04-01",
-            size: "2.4 МБ",
-          },
-          {
-            id: "DOC-1002",
-            name: "Презентация для клиента.pptx",
-            type: "PRESENTATION",
-            owner: {
-              id: "user-2",
-              name: "Мария Сидорова",
-            },
-            updatedAt: "2025-03-28",
-            size: "5.7 МБ",
-          },
-          {
-            id: "DOC-1003",
-            name: "Техническая документация.docx",
-            type: "DOC",
-            owner: {
-              id: "user-3",
-              name: "Алексей Иванов",
-            },
-            updatedAt: "2025-03-25",
-            size: "1.2 МБ",
-          },
-        ]
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить документы")
+      }
 
-        setDocuments(mockDocuments)
-        setFilteredDocuments(mockDocuments)
-        setIsLoading(false)
-      }, 1000)
+      const data = await response.json()
+
+      // Преобразуем данные в нужный формат
+      const formattedDocuments = data.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        owner: {
+          id: item.creator?.id || "unknown",
+          name: item.creator?.name || "Неизвестный пользователь",
+        },
+        updatedAt: item.updatedAt,
+        size: item.size,
+      }))
+
+      setDocuments(formattedDocuments)
+      setFilteredDocuments(formattedDocuments)
     } catch (err) {
       console.error("Ошибка при загрузке документов:", err)
       setError("Не удалось загрузить документы")
+    } finally {
       setIsLoading(false)
     }
   }
@@ -179,35 +158,116 @@ export function RecentDocuments() {
   }
 
   const uploadDocument = async (data: z.infer<typeof documentSchema>) => {
+    if (!session?.user?.id) {
+      toast({
+        title: "Ошибка",
+        description: "Вы должны быть авторизованы для загрузки документов",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsUploading(true)
 
     try {
-      // В реальном приложении здесь был бы код для загрузки файла на сервер
-      // и сохранения информации о документе в базе данных
+      // Создаем FormData для загрузки файла
+      const formData = new FormData()
+      formData.append("file", data.file[0])
+      formData.append("name", data.name)
+      formData.append("type", data.type)
+      formData.append("description", data.description || "")
 
-      // Временная имитация загрузки
-      setTimeout(() => {
-        const file = data.file[0]
+      // Отправляем файл на сервер
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
 
-        const newDocument: Document = {
-          id: `DOC-${Date.now()}`,
-          name: data.name || file.name,
+      if (!uploadResponse.ok) {
+        throw new Error("Не удалось загрузить файл")
+      }
+
+      const uploadResult = await uploadResponse.json()
+
+      // Создаем запись о документе в базе данных
+      const documentResponse = await fetch("/api/documents", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: data.name || data.file[0].name,
           type: data.type,
-          owner: {
-            id: session?.user?.id || "unknown",
-            name: session?.user?.name || "Пользователь",
-          },
-          updatedAt: new Date().toISOString(),
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} МБ`,
-        }
+          description: data.description,
+          url: uploadResult.url,
+          size: `${(data.file[0].size / (1024 * 1024)).toFixed(1)} МБ`,
+          creatorId: session.user.id,
+        }),
+      })
 
-        setDocuments((prev) => [newDocument, ...prev])
-        setIsUploading(false)
-        form.reset()
-      }, 1500)
+      if (!documentResponse.ok) {
+        throw new Error("Не удалось сохранить информацию о документе")
+      }
+
+      const newDocument = await documentResponse.json()
+
+      // Добавляем новый документ в список
+      const formattedDocument: Document = {
+        id: newDocument.id,
+        name: newDocument.name,
+        type: newDocument.type,
+        owner: {
+          id: session.user.id,
+          name: session.user.name || "Пользователь",
+        },
+        updatedAt: newDocument.updatedAt,
+        size: newDocument.size,
+      }
+
+      setDocuments((prev) => [formattedDocument, ...prev])
+
+      toast({
+        title: "Успешно",
+        description: "Документ успешно загружен",
+      })
+
+      form.reset()
     } catch (err) {
       console.error("Ошибка при загрузке документа:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить документ",
+        variant: "destructive",
+      })
+    } finally {
       setIsUploading(false)
+    }
+  }
+
+  const handleDeleteDocument = async (id: string) => {
+    try {
+      const response = await fetch(`/api/documents/${id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось удалить документ")
+      }
+
+      // Удаляем документ из списка
+      setDocuments((prev) => prev.filter((doc) => doc.id !== id))
+
+      toast({
+        title: "Успешно",
+        description: "Документ успешно удален",
+      })
+    } catch (err) {
+      console.error("Ошибка при удалении документа:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить документ",
+        variant: "destructive",
+      })
     }
   }
 
@@ -425,7 +485,7 @@ export function RecentDocuments() {
                           <Share className="mr-2 h-4 w-4" />
                           <span>Поделиться</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteDocument(doc.id)}>
                           <Trash className="mr-2 h-4 w-4" />
                           <span>Удалить</span>
                         </DropdownMenuItem>
