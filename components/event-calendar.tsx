@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,8 +15,16 @@ import {
 } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Users, CalendarIcon } from "lucide-react"
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Users, CalendarIcon, Loader2 } from "lucide-react"
 import { ru } from "date-fns/locale"
+import { useSession } from "next-auth/react"
+import { useToast } from "@/hooks/use-toast"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 
 type Event = {
   id: string
@@ -26,94 +34,207 @@ type Event = {
   startTime: string
   endTime: string
   location: string
-  type: "встреча" | "дедлайн" | "праздник" | "отпуск"
-  participants: string[]
-}
-
-// Создаем события на текущий месяц
-const currentDate = new Date()
-const currentYear = currentDate.getFullYear()
-const currentMonth = currentDate.getMonth()
-
-const events: Event[] = [
-  {
-    id: "EVT-1001",
-    title: "Еженедельное собрание команды",
-    description: "Обсуждение текущих проектов и планирование на неделю",
-    date: new Date(currentYear, currentMonth, 5, 10, 0),
-    startTime: "10:00",
-    endTime: "11:30",
-    location: "Конференц-зал А",
-    type: "встреча",
-    participants: ["Иван Петров", "Мария Сидорова", "Алексей Иванов", "Елена Смирнова"],
-  },
-  {
-    id: "EVT-1002",
-    title: "Дедлайн проекта 'Альфа'",
-    description: "Сдача финальной версии проекта заказчику",
-    date: new Date(currentYear, currentMonth, 15, 18, 0),
-    startTime: "18:00",
-    endTime: "18:00",
-    location: "Онлайн",
-    type: "дедлайн",
-    participants: ["Алексей Иванов", "Сергей Новиков", "Дмитрий Козлов"],
-  },
-  {
-    id: "EVT-1003",
-    title: "Корпоративный праздник",
-    description: "Празднование дня основания компании",
-    date: new Date(currentYear, currentMonth, 20, 16, 0),
-    startTime: "16:00",
-    endTime: "22:00",
-    location: "Ресторан 'Панорама'",
-    type: "праздник",
-    participants: ["Все сотрудники"],
-  },
-  {
-    id: "EVT-1004",
-    title: "Отпуск - Дмитрий Козлов",
-    description: "Плановый отпуск",
-    date: new Date(currentYear, currentMonth, 25, 0, 0),
-    startTime: "00:00",
-    endTime: "23:59",
-    location: "",
-    type: "отпуск",
-    participants: ["Дмитрий Козлов"],
-  },
-]
-
-const getEventTypeColor = (type: Event["type"]) => {
-  switch (type) {
-    case "встреча":
-      return "bg-blue-100 text-blue-800"
-    case "дедлайн":
-      return "bg-red-100 text-red-800"
-    case "праздник":
-      return "bg-green-100 text-green-800"
-    case "отпуск":
-      return "bg-purple-100 text-purple-800"
-    default:
-      return "bg-gray-100 text-gray-800"
+  type: "MEETING" | "DEADLINE" | "HOLIDAY" | "VACATION"
+  participants: {
+    id: string
+    user: {
+      id: string
+      name: string
+      avatar?: string
+      initials: string
+    }
+    status: string
+  }[]
+  creator: {
+    id: string
+    name: string
+    avatar?: string
+    initials: string
   }
 }
 
-const getEventsByDate = (date: Date) => {
-  return events.filter(
-    (event) =>
-      event.date.getDate() === date.getDate() &&
-      event.date.getMonth() === date.getMonth() &&
-      event.date.getFullYear() === date.getFullYear(),
-  )
-}
-
-const getDaysWithEvents = () => {
-  return events.map((event) => event.date)
+type User = {
+  id: string
+  name: string
 }
 
 export function EventCalendar() {
+  const { data: session } = useSession()
+  const { toast } = useToast()
   const [date, setDate] = useState<Date>(new Date())
   const [view, setView] = useState<"month" | "day">("month")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [events, setEvents] = useState<Event[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Форма создания события
+  const eventSchema = z.object({
+    title: z.string().min(3, "Название должно содержать минимум 3 символа"),
+    description: z.string().optional(),
+    date: z.date(),
+    startTime: z.string().min(1, "Укажите время начала"),
+    endTime: z.string().min(1, "Укажите время окончания"),
+    location: z.string().optional(),
+    type: z.enum(["MEETING", "DEADLINE", "HOLIDAY", "VACATION"]),
+    participants: z.array(z.string()).optional(),
+  })
+
+  const form = useForm<z.infer<typeof eventSchema>>({
+    resolver: zodResolver(eventSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      date: new Date(),
+      startTime: "09:00",
+      endTime: "10:00",
+      location: "",
+      type: "MEETING",
+      participants: [],
+    },
+  })
+
+  useEffect(() => {
+    fetchEvents()
+    fetchUsers()
+  }, [])
+
+  const fetchEvents = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch("/api/events")
+
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить события")
+      }
+
+      const data = await response.json()
+
+      // Преобразуем данные в нужный формат
+      const formattedEvents = data.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || "",
+        date: new Date(item.date),
+        startTime: item.startTime,
+        endTime: item.endTime,
+        location: item.location || "",
+        type: item.type,
+        participants: item.participants || [],
+        creator: item.creator || {
+          id: "unknown",
+          name: "Неизвестный пользователь",
+          initials: "НП",
+        },
+      }))
+
+      setEvents(formattedEvents)
+    } catch (err) {
+      console.error("Ошибка при загрузке событий:", err)
+      setError("Не удалось загрузить события")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("/api/users")
+
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить пользователей")
+      }
+
+      const data = await response.json()
+
+      // Преобразуем данные в нужный формат
+      const formattedUsers = data.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+      }))
+
+      setUsers(formattedUsers)
+    } catch (err) {
+      console.error("Ошибка при загрузке пользователей:", err)
+    }
+  }
+
+  const createEvent = async (data: z.infer<typeof eventSchema>) => {
+    if (!session?.user?.id) {
+      toast({
+        title: "Ошибка",
+        description: "Вы должны быть авторизованы для создания событий",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description || "",
+          date: data.date.toISOString(),
+          startTime: data.startTime,
+          endTime: data.endTime,
+          location: data.location || "",
+          type: data.type,
+          creatorId: session.user.id,
+          participants: data.participants || [],
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось создать событие")
+      }
+
+      const newEvent = await response.json()
+
+      // Добавляем новое событие в список
+      const formattedEvent: Event = {
+        id: newEvent.id,
+        title: newEvent.title,
+        description: newEvent.description || "",
+        date: new Date(newEvent.date),
+        startTime: newEvent.startTime,
+        endTime: newEvent.endTime,
+        location: newEvent.location || "",
+        type: newEvent.type,
+        participants: newEvent.participants || [],
+        creator: {
+          id: session.user.id,
+          name: session.user.name || "Пользователь",
+          initials: getInitials(session.user.name || "Пользователь"),
+        },
+      }
+
+      setEvents((prev) => [...prev, formattedEvent])
+
+      toast({
+        title: "Успешно",
+        description: "Событие успешно создано",
+      })
+
+      form.reset()
+    } catch (err) {
+      console.error("Ошибка при создании события:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать событие",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
@@ -126,11 +247,60 @@ export function EventCalendar() {
     setView("month")
   }
 
-  const daysWithEvents = getDaysWithEvents()
-  const eventsForSelectedDate = getEventsByDate(selectedDate)
+  const getEventsByDate = (date: Date) => {
+    return events.filter(
+      (event) =>
+        event.date.getDate() === date.getDate() &&
+        event.date.getMonth() === date.getMonth() &&
+        event.date.getFullYear() === date.getFullYear(),
+    )
+  }
+
+  const getDaysWithEvents = () => {
+    return events.map((event) => event.date)
+  }
+
+  const getEventTypeColor = (type: Event["type"]) => {
+    switch (type) {
+      case "MEETING":
+        return "bg-blue-100 text-blue-800"
+      case "DEADLINE":
+        return "bg-red-100 text-red-800"
+      case "HOLIDAY":
+        return "bg-green-100 text-green-800"
+      case "VACATION":
+        return "bg-purple-100 text-purple-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getEventTypeText = (type: Event["type"]) => {
+    switch (type) {
+      case "MEETING":
+        return "встреча"
+      case "DEADLINE":
+        return "дедлайн"
+      case "HOLIDAY":
+        return "праздник"
+      case "VACATION":
+        return "отпуск"
+      default:
+        return type.toLowerCase()
+    }
+  }
+
+  // Функция для получения инициалов из имени
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+  }
 
   const monthNames = [
-    "Январь",
+    "Январ��",
     "Февраль",
     "Март",
     "Апрель",
@@ -159,6 +329,23 @@ export function EventCalendar() {
     setDate(newDate)
   }
 
+  const daysWithEvents = getDaysWithEvents()
+  const eventsForSelectedDate = getEventsByDate(selectedDate)
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="p-6 bg-destructive/10 rounded-md">
+          <h3 className="font-semibold">Ошибка загрузки</h3>
+          <p>{error}</p>
+          <Button onClick={fetchEvents} className="mt-2">
+            Повторить
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -182,51 +369,196 @@ export function EventCalendar() {
               <DialogTitle>Создать новое событие</DialogTitle>
               <DialogDescription>Заполните информацию о событии</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <label htmlFor="title">Название</label>
-                <input id="title" className="border p-2 rounded-md" />
-              </div>
-              <div className="grid gap-2">
-                <label>Тип события</label>
-                <Select defaultValue="встреча">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите тип" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="встреча">Встреча</SelectItem>
-                    <SelectItem value="дедлайн">Дедлайн</SelectItem>
-                    <SelectItem value="праздник">Праздник</SelectItem>
-                    <SelectItem value="отпуск">Отпуск</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label>Дата</label>
-                  <input type="date" className="border p-2 rounded-md" />
-                </div>
-                <div className="grid gap-2">
-                  <label>Время</label>
-                  <div className="flex gap-2">
-                    <input type="time" className="border p-2 rounded-md w-full" />
-                    <span className="flex items-center">-</span>
-                    <input type="time" className="border p-2 rounded-md w-full" />
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(createEvent)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Название *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Введите название события" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Тип события *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите тип" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="MEETING">Встреча</SelectItem>
+                          <SelectItem value="DEADLINE">Дедлайн</SelectItem>
+                          <SelectItem value="HOLIDAY">Праздник</SelectItem>
+                          <SelectItem value="VACATION">Отпуск</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Дата *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            value={field.value ? field.value.toISOString().split("T")[0] : ""}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : new Date()
+                              field.onChange(date)
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid gap-2">
+                    <FormLabel>Время *</FormLabel>
+                    <div className="flex gap-2">
+                      <FormField
+                        control={form.control}
+                        name="startTime"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input type="time" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <span className="flex items-center">-</span>
+                      <FormField
+                        control={form.control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input type="time" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="location">Место</label>
-                <input id="location" className="border p-2 rounded-md" />
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="description">Описание</label>
-                <textarea id="description" className="border p-2 rounded-md" rows={3}></textarea>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Создать событие</Button>
-            </DialogFooter>
+
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Место</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Укажите место проведения" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Описание</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Опишите событие подробнее" rows={3} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="participants"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Участники</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          const currentValues = field.value || []
+                          if (!currentValues.includes(value)) {
+                            field.onChange([...currentValues, value])
+                          }
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите участников" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {field.value && field.value.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {field.value.map((userId) => {
+                            const user = users.find((u) => u.id === userId)
+                            return user ? (
+                              <Badge key={userId} variant="secondary" className="flex items-center gap-1">
+                                {user.name}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    field.onChange(field.value?.filter((id) => id !== userId))
+                                  }}
+                                  className="ml-1 rounded-full hover:bg-muted p-1"
+                                >
+                                  ✕
+                                </button>
+                              </Badge>
+                            ) : null
+                          })}
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <DialogFooter>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Создание...
+                      </>
+                    ) : (
+                      "Создать событие"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
@@ -304,7 +636,7 @@ export function EventCalendar() {
                         </CardDescription>
                       </div>
                       <Badge variant="outline" className={getEventTypeColor(event.type)}>
-                        {event.type}
+                        {getEventTypeText(event.type)}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -325,7 +657,11 @@ export function EventCalendar() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="h-4 w-4" />
-                        <span>{event.participants.join(", ")}</span>
+                        <span>
+                          {event.participants.length > 0
+                            ? event.participants.map((p) => p.user.name).join(", ")
+                            : "Нет участников"}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -351,51 +687,196 @@ export function EventCalendar() {
                       <DialogTitle>Создать новое событие</DialogTitle>
                       <DialogDescription>Заполните информацию о событии</DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <label htmlFor="title">Название</label>
-                        <input id="title" className="border p-2 rounded-md" />
-                      </div>
-                      <div className="grid gap-2">
-                        <label>Тип события</label>
-                        <Select defaultValue="встреча">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Выберите тип" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="встреча">Встреча</SelectItem>
-                            <SelectItem value="дедлайн">Дедлайн</SelectItem>
-                            <SelectItem value="праздник">Праздник</SelectItem>
-                            <SelectItem value="отпуск">Отпуск</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <label>Дата</label>
-                          <input type="date" className="border p-2 rounded-md" />
-                        </div>
-                        <div className="grid gap-2">
-                          <label>Время</label>
-                          <div className="flex gap-2">
-                            <input type="time" className="border p-2 rounded-md w-full" />
-                            <span className="flex items-center">-</span>
-                            <input type="time" className="border p-2 rounded-md w-full" />
+
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(createEvent)} className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Название *</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Введите название события" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="type"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Тип события *</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Выберите тип" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="MEETING">Встреча</SelectItem>
+                                  <SelectItem value="DEADLINE">Дедлайн</SelectItem>
+                                  <SelectItem value="HOLIDAY">Праздник</SelectItem>
+                                  <SelectItem value="VACATION">Отпуск</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="date"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Дата *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="date"
+                                    value={selectedDate.toISOString().split("T")[0]}
+                                    onChange={(e) => {
+                                      const date = e.target.value ? new Date(e.target.value) : selectedDate
+                                      field.onChange(date)
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="grid gap-2">
+                            <FormLabel>Время *</FormLabel>
+                            <div className="flex gap-2">
+                              <FormField
+                                control={form.control}
+                                name="startTime"
+                                render={({ field }) => (
+                                  <FormItem className="flex-1">
+                                    <FormControl>
+                                      <Input type="time" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <span className="flex items-center">-</span>
+                              <FormField
+                                control={form.control}
+                                name="endTime"
+                                render={({ field }) => (
+                                  <FormItem className="flex-1">
+                                    <FormControl>
+                                      <Input type="time" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <label htmlFor="location">Место</label>
-                        <input id="location" className="border p-2 rounded-md" />
-                      </div>
-                      <div className="grid gap-2">
-                        <label htmlFor="description">Описание</label>
-                        <textarea id="description" className="border p-2 rounded-md" rows={3}></textarea>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit">Создать событие</Button>
-                    </DialogFooter>
+
+                        <FormField
+                          control={form.control}
+                          name="location"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Место</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Укажите место проведения" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Описание</FormLabel>
+                              <FormControl>
+                                <Textarea placeholder="Опишите событие подробнее" rows={3} {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="participants"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Участники</FormLabel>
+                              <Select
+                                onValueChange={(value) => {
+                                  const currentValues = field.value || []
+                                  if (!currentValues.includes(value)) {
+                                    field.onChange([...currentValues, value])
+                                  }
+                                }}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Выберите участников" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {users.map((user) => (
+                                    <SelectItem key={user.id} value={user.id}>
+                                      {user.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {field.value && field.value.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {field.value.map((userId) => {
+                                    const user = users.find((u) => u.id === userId)
+                                    return user ? (
+                                      <Badge key={userId} variant="secondary" className="flex items-center gap-1">
+                                        {user.name}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            field.onChange(field.value?.filter((id) => id !== userId))
+                                          }}
+                                          className="ml-1 rounded-full hover:bg-muted p-1"
+                                        >
+                                          ✕
+                                        </button>
+                                      </Badge>
+                                    ) : null
+                                  })}
+                                </div>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <DialogFooter>
+                          <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Создание...
+                              </>
+                            ) : (
+                              "Создать событие"
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
                   </DialogContent>
                 </Dialog>
               </CardContent>

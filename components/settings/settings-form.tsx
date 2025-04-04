@@ -84,7 +84,7 @@ export function SettingsForm() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="location">Местоположение</Label>
-                <Input id="location" placeholder="Город, Страна" />
+                <Input id="location" placeholder="Город, ��трана" />
               </div>
             </div>
           </CardContent>
