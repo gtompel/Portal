@@ -265,7 +265,7 @@ export function TaskList() {
     }
   }
 
-  // Функция для получения инициалов из имени Функция для получения инициалов из имени
+  // Функция для получения инициалов из имени
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -287,6 +287,9 @@ export function TaskList() {
     setIsAddingTask(true)
 
     try {
+      // Преобразуем пустую строку в null для assigneeId
+      const assigneeId = data.assigneeId === "" || data.assigneeId === "not_assigned" ? null : data.assigneeId
+
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: {
@@ -294,6 +297,7 @@ export function TaskList() {
         },
         body: JSON.stringify({
           ...data,
+          assigneeId,
           creatorId: session.user.id,
         }),
       })
@@ -349,12 +353,18 @@ export function TaskList() {
     setIsEditingTask(true)
 
     try {
+      // Преобразуем специальное значение в null для assigneeId
+      const assigneeId = data.assigneeId === "not_assigned" ? null : data.assigneeId
+
       const response = await fetch(`/api/tasks/${currentTask.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          assigneeId,
+        }),
       })
 
       if (!response.ok) {
@@ -710,7 +720,7 @@ export function TaskList() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Не назначен</SelectItem>
+                            <SelectItem value="not_assigned">Не назначен</SelectItem>
                             {users.map((user) => (
                               <SelectItem key={user.id} value={user.id}>
                                 {user.name}

@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Link from "next/link"
 
 export default function Header() {
   const { data: session } = useSession()
@@ -67,10 +68,10 @@ export default function Header() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <a href="/profile">Профиль</a>
+                <Link href={`/employees/${session.user.id}`}>Профиль</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href="/settings">Настройки</a>
+                <Link href="/settings">Настройки</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/auth/login" })}>Выйти</DropdownMenuItem>

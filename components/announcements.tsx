@@ -102,7 +102,7 @@ export function Announcements() {
       setAnnouncements(formattedAnnouncements)
     } catch (err) {
       console.error("Ошибка при загрузке объявлений:", err)
-      setError("Не удалось з��грузить объявления")
+      setError("Не удалось загрузить объявления")
     } finally {
       setIsLoading(false)
     }
@@ -148,7 +148,7 @@ export function Announcements() {
           name: session.user.name || "Пользователь",
           initials: getInitials(session.user.name || "Пользователь"),
         },
-        date: newAnnouncement.createdAt,
+        date: newAnnouncement.createdAt || new Date().toISOString(),
         category: newAnnouncement.category,
         likes: 0,
         comments: 0,
@@ -233,6 +233,21 @@ export function Announcements() {
       .map((part) => part[0])
       .join("")
       .toUpperCase()
+  }
+
+  // Функция для форматирования даты
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      // Проверяем, что дата валидна
+      if (isNaN(date.getTime())) {
+        return "Недавно"
+      }
+      return date.toLocaleDateString("ru-RU")
+    } catch (error) {
+      console.error("Ошибка форматирования даты:", error)
+      return "Недавно"
+    }
   }
 
   if (error) {
@@ -370,7 +385,7 @@ export function Announcements() {
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
                     <CardTitle>{announcement.title}</CardTitle>
-                    <CardDescription>{new Date(announcement.date).toLocaleDateString("ru-RU")}</CardDescription>
+                    <CardDescription>{formatDate(announcement.date)}</CardDescription>
                   </div>
                   <Badge variant="outline" className={getCategoryColor(announcement.category)}>
                     {getCategoryText(announcement.category)}
@@ -405,12 +420,82 @@ export function Announcements() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-10">
               <p className="text-muted-foreground mb-4">Объявлений пока нет</p>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Создать объявление
-                </Button>
-              </DialogTrigger>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Создать объявление
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Создать объявление</DialogTitle>
+                    <DialogDescription>Заполните информацию для создания нового объявления</DialogDescription>
+                  </DialogHeader>
+
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(createAnnouncement)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Заголовок</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Введите заголовок объявления" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="content"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Содержание</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Введите текст объявления" className="min-h-[120px]" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Категория</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Выберите категорию" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="NEWS">Новость</SelectItem>
+                                <SelectItem value="IMPORTANT">Важное</SelectItem>
+                                <SelectItem value="EVENT">Событие</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <DialogFooter>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Опубликовать
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         )}

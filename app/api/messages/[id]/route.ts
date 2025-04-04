@@ -91,7 +91,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-// DELETE /api/messages/[id] - Удалить сообщение
+// DELETE /api/messages/[id] - Удалить сообщени��
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     // Проверяем, существует ли сообщение
