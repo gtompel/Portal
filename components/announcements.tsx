@@ -102,7 +102,7 @@ export function Announcements() {
       setAnnouncements(formattedAnnouncements)
     } catch (err) {
       console.error("Ошибка при загрузке объявлений:", err)
-      setError("Не удалось загрузить объявления")
+      setError("Не удалось з��грузить объявления")
     } finally {
       setIsLoading(false)
     }

@@ -47,6 +47,7 @@ type Document = {
   }
   updatedAt: string
   size: string
+  url: string
 }
 
 export function RecentDocuments() {
@@ -110,6 +111,7 @@ export function RecentDocuments() {
         },
         updatedAt: item.updatedAt,
         size: item.size,
+        url: item.url,
       }))
 
       setDocuments(formattedDocuments)
@@ -173,9 +175,6 @@ export function RecentDocuments() {
       // Создаем FormData для загрузки файла
       const formData = new FormData()
       formData.append("file", data.file[0])
-      formData.append("name", data.name)
-      formData.append("type", data.type)
-      formData.append("description", data.description || "")
 
       // Отправляем файл на сервер
       const uploadResponse = await fetch("/api/upload", {
@@ -222,6 +221,7 @@ export function RecentDocuments() {
         },
         updatedAt: newDocument.updatedAt,
         size: newDocument.size,
+        url: newDocument.url,
       }
 
       setDocuments((prev) => [formattedDocument, ...prev])
@@ -269,6 +269,19 @@ export function RecentDocuments() {
         variant: "destructive",
       })
     }
+  }
+
+  const handleDownloadDocument = (document: Document) => {
+    // Создаем ссылку для скачивания
+    const link = document.url
+
+    // Создаем временный элемент <a> для скачивания
+    const a = window.document.createElement("a")
+    a.href = link
+    a.download = document.name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   if (error) {
@@ -477,7 +490,7 @@ export function RecentDocuments() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadDocument(doc)}>
                           <Download className="mr-2 h-4 w-4" />
                           <span>Скачать</span>
                         </DropdownMenuItem>

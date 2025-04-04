@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -8,7 +8,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Search, Mail, Phone, UserPlus } from "lucide-react"
+import { Search, Mail, Phone, UserPlus, Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { useToast } from "@/hooks/use-toast"
 
 type Employee = {
   id: string
@@ -17,131 +32,235 @@ type Employee = {
   department: string
   email: string
   phone: string
-  avatar: string
+  avatar?: string
   initials: string
-  status: "работает" | "в отпуске" | "удаленно"
-}
-
-const employees: Employee[] = [
-  {
-    id: "EMP-1001",
-    name: "Иван Петров",
-    position: "Генеральный директор",
-    department: "Руководство",
-    email: "i.petrov@example.com",
-    phone: "+7 (999) 123-45-67",
-    avatar: "/placeholder-user.jpg",
-    initials: "ИП",
-    status: "работает",
-  },
-  {
-    id: "EMP-1002",
-    name: "Мария Сидорова",
-    position: "Руководитель отдела маркетинга",
-    department: "Маркетинг",
-    email: "m.sidorova@example.com",
-    phone: "+7 (999) 234-56-78",
-    avatar: "/placeholder-user.jpg",
-    initials: "МС",
-    status: "работает",
-  },
-  {
-    id: "EMP-1003",
-    name: "Алексей Иванов",
-    position: "Старший разработчик",
-    department: "IT",
-    email: "a.ivanov@example.com",
-    phone: "+7 (999) 345-67-89",
-    avatar: "/placeholder-user.jpg",
-    initials: "АИ",
-    status: "удаленно",
-  },
-  {
-    id: "EMP-1004",
-    name: "Елена Смирнова",
-    position: "Дизайнер",
-    department: "Дизайн",
-    email: "e.smirnova@example.com",
-    phone: "+7 (999) 456-78-90",
-    avatar: "/placeholder-user.jpg",
-    initials: "ЕС",
-    status: "работает",
-  },
-  {
-    id: "EMP-1005",
-    name: "Дмитрий Козлов",
-    position: "Финансовый аналитик",
-    department: "Финансы",
-    email: "d.kozlov@example.com",
-    phone: "+7 (999) 567-89-01",
-    avatar: "/placeholder-user.jpg",
-    initials: "ДК",
-    status: "в отпуске",
-  },
-  {
-    id: "EMP-1006",
-    name: "Анна Михайлова",
-    position: "HR-менеджер",
-    department: "HR",
-    email: "a.mikhailova@example.com",
-    phone: "+7 (999) 678-90-12",
-    avatar: "/placeholder-user.jpg",
-    initials: "АМ",
-    status: "работает",
-  },
-  {
-    id: "EMP-1007",
-    name: "Сергей Новиков",
-    position: "Системный администратор",
-    department: "IT",
-    email: "s.novikov@example.com",
-    phone: "+7 (999) 789-01-23",
-    avatar: "/placeholder-user.jpg",
-    initials: "СН",
-    status: "работает",
-  },
-  {
-    id: "EMP-1008",
-    name: "Ольга Кузнецова",
-    position: "Бухгалтер",
-    department: "Финансы",
-    email: "o.kuznetsova@example.com",
-    phone: "+7 (999) 890-12-34",
-    avatar: "/placeholder-user.jpg",
-    initials: "ОК",
-    status: "удаленно",
-  },
-]
-
-const getStatusColor = (status: Employee["status"]) => {
-  switch (status) {
-    case "работает":
-      return "bg-green-100 text-green-800"
-    case "в отпуске":
-      return "bg-yellow-100 text-yellow-800"
-    case "удаленно":
-      return "bg-blue-100 text-blue-800"
-    default:
-      return "bg-gray-100 text-gray-800"
-  }
+  status: "WORKING" | "ON_VACATION" | "REMOTE"
+  location?: string
 }
 
 export function EmployeeDirectory() {
+  const { toast } = useToast()
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState<string>("all")
+  const [departments, setDepartments] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const departments = Array.from(new Set(employees.map((emp) => emp.department)))
+  // Форма добавления сотрудника
+  const employeeSchema = z
+    .object({
+      name: z.string().min(3, "Имя должно содержать минимум 3 символа"),
+      email: z.string().email("Введите корректный email"),
+      position: z.string().min(2, "Должность должна содержать минимум 2 символа"),
+      department: z.string().min(2, "Отдел должен содержать минимум 2 символа"),
+      phone: z.string().optional(),
+      location: z.string().optional(),
+      status: z.enum(["WORKING", "ON_VACATION", "REMOTE"]),
+      password: z.string().min(6, "Пароль должен содержать минимум 6 символов"),
+      confirmPassword: z.string().min(6, "Пароль должен содержать минимум 6 символов"),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Пароли не совпадают",
+      path: ["confirmPassword"],
+    })
 
-  const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesDepartment = departmentFilter === "all" || emp.department === departmentFilter
-
-    return matchesSearch && matchesDepartment
+  const form = useForm<z.infer<typeof employeeSchema>>({
+    resolver: zodResolver(employeeSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      position: "",
+      department: "",
+      phone: "",
+      location: "",
+      status: "WORKING",
+      password: "",
+      confirmPassword: "",
+    },
   })
+
+  useEffect(() => {
+    fetchEmployees()
+  }, [])
+
+  useEffect(() => {
+    if (employees.length) {
+      filterEmployees()
+
+      // Получаем уникальные отделы
+      const uniqueDepartments = Array.from(new Set(employees.map((emp) => emp.department)))
+      setDepartments(uniqueDepartments)
+    }
+  }, [searchTerm, departmentFilter, employees])
+
+  const fetchEmployees = async () => {
+    try {
+      setIsLoading(true)
+
+      const response = await fetch("/api/users")
+
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить сотрудников")
+      }
+
+      const data = await response.json()
+
+      // Преобразуем данные в нужный формат
+      const formattedEmployees = data.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        position: item.position,
+        department: item.department,
+        email: item.email,
+        phone: item.phone || "",
+        avatar: item.avatar,
+        initials: item.initials || getInitials(item.name),
+        status: item.status,
+        location: item.location,
+      }))
+
+      setEmployees(formattedEmployees)
+      setFilteredEmployees(formattedEmployees)
+    } catch (err) {
+      console.error("Ошибка при загрузке сотрудников:", err)
+      setError("Не удалось загрузить сотрудников")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const filterEmployees = () => {
+    let result = [...employees]
+
+    if (searchTerm) {
+      result = result.filter(
+        (emp) =>
+          emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          emp.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          emp.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    }
+
+    if (departmentFilter !== "all") {
+      result = result.filter((emp) => emp.department === departmentFilter)
+    }
+
+    setFilteredEmployees(result)
+  }
+
+  const createEmployee = async (data: z.infer<typeof employeeSchema>) => {
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          position: data.position,
+          department: data.department,
+          phone: data.phone,
+          location: data.location,
+          status: data.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Не удалось создать сотрудника")
+      }
+
+      const newEmployee = await response.json()
+
+      // Добавляем нового сотрудника в список
+      const formattedEmployee: Employee = {
+        id: newEmployee.id,
+        name: newEmployee.name,
+        position: newEmployee.position,
+        department: newEmployee.department,
+        email: newEmployee.email,
+        phone: newEmployee.phone || "",
+        avatar: newEmployee.avatar,
+        initials: newEmployee.initials || getInitials(newEmployee.name),
+        status: newEmployee.status,
+        location: newEmployee.location,
+      }
+
+      setEmployees((prev) => [...prev, formattedEmployee])
+
+      toast({
+        title: "Успешно",
+        description: "Сотрудник успешно добавлен",
+      })
+
+      form.reset()
+    } catch (err) {
+      console.error("Ошибка при создании сотрудника:", err)
+      toast({
+        title: "Ошибка",
+        description: err instanceof Error ? err.message : "Не удалось создать сотрудника",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const getStatusColor = (status: Employee["status"]) => {
+    switch (status) {
+      case "WORKING":
+        return "bg-green-100 text-green-800"
+      case "ON_VACATION":
+        return "bg-yellow-100 text-yellow-800"
+      case "REMOTE":
+        return "bg-blue-100 text-blue-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getStatusText = (status: Employee["status"]) => {
+    switch (status) {
+      case "WORKING":
+        return "работает"
+      case "ON_VACATION":
+        return "в отпуске"
+      case "REMOTE":
+        return "удаленно"
+      default:
+        return status
+    }
+  }
+
+  // Функция для получения инициалов из имени
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="p-6 bg-destructive/10 rounded-md">
+          <h3 className="font-semibold">Ошибка загрузки</h3>
+          <p>{error}</p>
+          <Button onClick={fetchEmployees} className="mt-2">
+            Повторить
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -171,20 +290,206 @@ export function EmployeeDirectory() {
             </SelectContent>
           </Select>
         </div>
-        <Button className="gap-1">
-          <UserPlus className="h-4 w-4" />
-          <span>Добавить сотрудника</span>
-        </Button>
+
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="gap-1">
+              <UserPlus className="h-4 w-4" />
+              <span>Добавить сотрудника</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Добавить сотрудника</DialogTitle>
+              <DialogDescription>Заполните информацию для добавления нового сотрудника</DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(createEmployee)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ФИО</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Иванов Иван Иванович" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="ivanov@example.com" type="email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="position"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Должность</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Менеджер" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="department"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Отдел</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Маркетинг" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Телефон</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+7 (999) 123-45-67" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Местоположение</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Москва, Россия" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Статус</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите статус" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="WORKING">Работает</SelectItem>
+                          <SelectItem value="ON_VACATION">В отпуске</SelectItem>
+                          <SelectItem value="REMOTE">Удаленно</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Пароль</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="******" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Подтверждение пароля</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="******" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <DialogFooter>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Добавить сотрудника
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredEmployees.length > 0 ? (
+        {isLoading ? (
+          Array(8)
+            .fill(0)
+            .map((_, index) => (
+              <Card key={index} className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-6 w-24" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                </CardHeader>
+                <CardContent className="pb-2 text-center">
+                  <Skeleton className="h-24 w-24 rounded-full mx-auto mb-2" />
+                  <Skeleton className="h-6 w-32 mx-auto mb-1" />
+                  <Skeleton className="h-4 w-48 mx-auto mb-4" />
+                  <div className="flex justify-center gap-2 mb-2">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Skeleton className="h-9 w-full rounded-md" />
+                </CardFooter>
+              </Card>
+            ))
+        ) : filteredEmployees.length > 0 ? (
           filteredEmployees.map((employee) => (
             <Card key={employee.id} className="overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex justify-between">
                   <Badge variant="outline" className={getStatusColor(employee.status)}>
-                    {employee.status}
+                    {getStatusText(employee.status)}
                   </Badge>
                   <CardDescription>{employee.department}</CardDescription>
                 </div>

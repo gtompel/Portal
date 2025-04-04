@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Loader2 } from "lucide-react"
+import { Plus, Search, Loader2, Edit, Trash } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSession } from "next-auth/react"
 import {
@@ -24,11 +24,13 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useToast } from "@/hooks/use-toast"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 // Типы данных
 type Task = {
   id: string
   title: string
+  description?: string
   assignee: {
     id: string
     name: string
@@ -41,6 +43,11 @@ type Task = {
   createdAt: string
 }
 
+type User = {
+  id: string
+  name: string
+}
+
 export function TaskList() {
   const { data: session } = useSession()
   const { toast } = useToast()
@@ -51,12 +58,17 @@ export function TaskList() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddingTask, setIsAddingTask] = useState(false)
+  const [isEditingTask, setIsEditingTask] = useState(false)
+  const [currentTask, setCurrentTask] = useState<Task | null>(null)
+  const [users, setUsers] = useState<User[]>([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
 
-  // Форма создания задачи
+  // Форма создания/редактирования задачи
   const taskSchema = z.object({
     title: z.string().min(3, "Название должно содержать минимум 3 символа"),
     description: z.string().optional(),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
+    status: z.enum(["NEW", "IN_PROGRESS", "REVIEW", "COMPLETED"]),
     dueDate: z.string().optional(),
     assigneeId: z.string().optional(),
   })
@@ -67,6 +79,19 @@ export function TaskList() {
       title: "",
       description: "",
       priority: "MEDIUM",
+      status: "NEW",
+      dueDate: "",
+      assigneeId: "",
+    },
+  })
+
+  const editForm = useForm<z.infer<typeof taskSchema>>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      priority: "MEDIUM",
+      status: "NEW",
       dueDate: "",
       assigneeId: "",
     },
@@ -74,6 +99,7 @@ export function TaskList() {
 
   useEffect(() => {
     fetchTasks()
+    fetchUsers()
   }, [])
 
   useEffect(() => {
@@ -81,6 +107,20 @@ export function TaskList() {
       filterTasks()
     }
   }, [searchTerm, statusFilter, tasks])
+
+  useEffect(() => {
+    if (currentTask) {
+      // Заполняем форму редактирования данными текущей задачи
+      editForm.reset({
+        title: currentTask.title,
+        description: currentTask.description || "",
+        priority: currentTask.priority,
+        status: currentTask.status,
+        dueDate: currentTask.dueDate || "",
+        assigneeId: currentTask.assignee?.id || "",
+      })
+    }
+  }, [currentTask, editForm])
 
   const fetchTasks = async () => {
     try {
@@ -98,6 +138,7 @@ export function TaskList() {
       const formattedTasks = data.map((item: any) => ({
         id: item.id,
         title: item.title,
+        description: item.description,
         assignee: item.assignee
           ? {
               id: item.assignee.id,
@@ -119,6 +160,32 @@ export function TaskList() {
       setError("Не удалось загрузить задачи")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoadingUsers(true)
+
+      const response = await fetch("/api/users")
+
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить пользователей")
+      }
+
+      const data = await response.json()
+
+      // Преобразуем данные в нужный формат
+      const formattedUsers = data.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+      }))
+
+      setUsers(formattedUsers)
+    } catch (err) {
+      console.error("Ошибка при загрузке пользователей:", err)
+    } finally {
+      setIsLoadingUsers(false)
     }
   }
 
@@ -198,7 +265,7 @@ export function TaskList() {
     }
   }
 
-  // Функция для получения инициалов из имени
+  // Функция для получения инициалов из имени Функция для получения инициалов из имени
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -241,6 +308,7 @@ export function TaskList() {
       const formattedTask: Task = {
         id: newTask.id,
         title: newTask.title,
+        description: newTask.description,
         assignee: newTask.assignee
           ? {
               id: newTask.assignee.id,
@@ -272,6 +340,95 @@ export function TaskList() {
       })
     } finally {
       setIsAddingTask(false)
+    }
+  }
+
+  const updateTask = async (data: z.infer<typeof taskSchema>) => {
+    if (!currentTask) return
+
+    setIsEditingTask(true)
+
+    try {
+      const response = await fetch(`/api/tasks/${currentTask.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось обновить задачу")
+      }
+
+      const updatedTask = await response.json()
+
+      // Обновляем задачу в списке
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === currentTask.id
+            ? {
+                ...task,
+                title: updatedTask.title,
+                description: updatedTask.description,
+                assignee: updatedTask.assignee
+                  ? {
+                      id: updatedTask.assignee.id,
+                      name: updatedTask.assignee.name,
+                      avatar: updatedTask.assignee.avatar,
+                      initials: updatedTask.assignee.initials || getInitials(updatedTask.assignee.name),
+                    }
+                  : null,
+                status: updatedTask.status,
+                priority: updatedTask.priority,
+                dueDate: updatedTask.dueDate,
+              }
+            : task,
+        ),
+      )
+
+      toast({
+        title: "Успешно",
+        description: "Задача успешно обновлена",
+      })
+
+      setCurrentTask(null)
+    } catch (err) {
+      console.error("Ошибка при обновлении задачи:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить задачу",
+        variant: "destructive",
+      })
+    } finally {
+      setIsEditingTask(false)
+    }
+  }
+
+  const deleteTask = async (id: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось удалить задачу")
+      }
+
+      // Удаляем задачу из списка
+      setTasks((prev) => prev.filter((task) => task.id !== id))
+
+      toast({
+        title: "Успешно",
+        description: "Задача успешно удалена",
+      })
+    } catch (err) {
+      console.error("Ошибка при удалении задачи:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить задачу",
+        variant: "destructive",
+      })
     }
   }
 
@@ -362,12 +519,12 @@ export function TaskList() {
                   )}
                 />
 
-                <div className="flex gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="priority"
                     render={({ field }) => (
-                      <FormItem className="flex-1">
+                      <FormItem>
                         <FormLabel>Приоритет *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
@@ -390,7 +547,7 @@ export function TaskList() {
                     control={form.control}
                     name="dueDate"
                     render={({ field }) => (
-                      <FormItem className="flex-1">
+                      <FormItem>
                         <FormLabel>Срок выполнения</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
@@ -401,10 +558,179 @@ export function TaskList() {
                   />
                 </div>
 
+                <FormField
+                  control={form.control}
+                  name="assigneeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Исполнитель</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите исполнителя" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="not_assigned">Не назначен</SelectItem>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <DialogFooter>
                   <Button type="submit" disabled={isAddingTask}>
                     {isAddingTask && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Создать задачу
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Диалог редактирования задачи */}
+        <Dialog open={!!currentTask} onOpenChange={(open) => !open && setCurrentTask(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Редактировать задачу</DialogTitle>
+              <DialogDescription>Измените информацию о задаче.</DialogDescription>
+            </DialogHeader>
+
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(updateTask)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Название задачи *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Введите название задачи" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Описание</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Опишите задачу подробнее" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Статус *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Выберите статус" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="NEW">Новая</SelectItem>
+                            <SelectItem value="IN_PROGRESS">В работе</SelectItem>
+                            <SelectItem value="REVIEW">На проверке</SelectItem>
+                            <SelectItem value="COMPLETED">Завершена</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Приоритет *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Выберите приоритет" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="LOW">Низкий</SelectItem>
+                            <SelectItem value="MEDIUM">Средний</SelectItem>
+                            <SelectItem value="HIGH">Высокий</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Срок выполнения</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="assigneeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Исполнитель</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Выберите исполнителя" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">Не назначен</SelectItem>
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setCurrentTask(null)}>
+                    Отмена
+                  </Button>
+                  <Button type="submit" disabled={isEditingTask}>
+                    {isEditingTask && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Сохранить изменения
                   </Button>
                 </DialogFooter>
               </form>
@@ -422,7 +748,8 @@ export function TaskList() {
               <TableHead>Исполнитель</TableHead>
               <TableHead>Статус</TableHead>
               <TableHead>Приоритет</TableHead>
-              <TableHead className="text-right">Срок</TableHead>
+              <TableHead>Срок</TableHead>
+              <TableHead className="w-[80px]">Действия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -446,8 +773,11 @@ export function TaskList() {
                     <TableCell>
                       <Skeleton className="h-4 w-16" />
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Skeleton className="h-4 w-24 ml-auto" />
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-8 rounded-full" />
                     </TableCell>
                   </TableRow>
                 ))
@@ -467,14 +797,32 @@ export function TaskList() {
                       {getPriorityText(task.priority)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "-"}
+                  <TableCell>{task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "-"}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">Действия</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setCurrentTask(task)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          <span>Редактировать</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => deleteTask(task.id)}>
+                          <Trash className="mr-2 h-4 w-4" />
+                          <span>Удалить</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Задачи не найдены.
                 </TableCell>
               </TableRow>
