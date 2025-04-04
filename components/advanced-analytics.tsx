@@ -119,7 +119,7 @@ export function AdvancedAnalytics() {
     }
   }
 
-  // Replace the useEffect that calls generateAnalyticsData with this:
+  // Обновим useEffect для загрузки данных о проектах
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -146,11 +146,47 @@ export function AdvancedAnalytics() {
         const tasksData = await tasksResponse.json()
         setTasks(tasksData)
 
+        // Загружаем данные о проектах
+        const projectsResponse = await fetch(`/api/analytics/projects?period=${period}`)
+        if (projectsResponse.ok) {
+          const projectsData = await projectsResponse.json()
+
+          // Обновляем данные о статусе проектов
+          if (projectsData.taskStatusStats) {
+            const statusColors = {
+              NEW: "#eab308",
+              IN_PROGRESS: "#3b82f6",
+              REVIEW: "#a855f7",
+              COMPLETED: "#22c55e",
+            }
+
+            const statusNames = {
+              NEW: "Новые",
+              IN_PROGRESS: "В процессе",
+              REVIEW: "На проверке",
+              COMPLETED: "Завершено",
+            }
+
+            const projectStatusData = projectsData.taskStatusStats.map((stat: any) => ({
+              name: statusNames[stat.status as keyof typeof statusNames] || stat.status,
+              value: stat.count,
+              color: statusColors[stat.status as keyof typeof statusColors] || "#94a3b8",
+            }))
+
+            if (data) {
+              setData({
+                ...data,
+                projectStatusData,
+              })
+            }
+          }
+        }
+
         // Fetch real analytics data
         await fetchAnalyticsData(period)
       } catch (err) {
         console.error("Ошибка при загрузке данных аналитики:", err)
-        setError("Не удалось загрузит�� данные аналитики")
+        setError("Не удалось загрузить данные аналитики")
       } finally {
         setIsLoading(false)
       }

@@ -300,7 +300,7 @@ export function EventCalendar() {
   }
 
   const monthNames = [
-    "Январ��",
+    "Январь",
     "Февраль",
     "Март",
     "Апрель",

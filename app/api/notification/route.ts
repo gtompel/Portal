@@ -66,6 +66,26 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Получаем непрочитанные сообщения для пользователя
+    const messages = await prisma.message.findMany({
+      where: {
+        receiverId: userId,
+        read: false,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5, // Ограничиваем количество сообщений
+    })
+
     // Формируем уведомления
     const eventNotifications = events.map((event) => ({
       id: `event-${event.id}`,
@@ -91,11 +111,21 @@ export async function GET(request: NextRequest) {
       creatorName: task.creator.name,
     }))
 
-    // Объединяем и сортируем уведомления по дате
-    const notifications = [...eventNotifications, ...taskNotifications].sort((a, b) => {
-      if (!a.date) return 1
-      if (!b.date) return -1
-      return new Date(a.date).getTime() - new Date(b.date).getTime()
+    const messageNotifications = messages.map((message) => ({
+      id: `message-${message.id}`,
+      type: "MESSAGE",
+      title: `Сообщение от ${message.sender.name}`,
+      description: message.content.length > 50 ? `${message.content.substring(0, 50)}...` : message.content,
+      date: null,
+      createdAt: message.createdAt,
+      read: false,
+      entityId: message.id,
+      creatorName: message.sender.name,
+    }))
+
+    // Объединяем и сортируем уведомления по дате создания (сначала новые)
+    const notifications = [...eventNotifications, ...taskNotifications, ...messageNotifications].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
 
     return NextResponse.json(notifications)
