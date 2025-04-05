@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
-import { writeFile } from "fs/promises"
+import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { v4 as uuidv4 } from "uuid"
-import { mkdir } from "fs/promises"
+import path from "path"
 
 export async function POST(request: Request) {
   try {
@@ -13,9 +13,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Файл не найден" }, { status: 400 })
     }
 
-    // Создаем уникальное имя файла
-    const fileExtension = file.name.split(".").pop()
-    const fileName = `${uuidv4()}.${fileExtension}`
+    // Получаем расширение файла из оригинального имени
+    const originalName = file.name
+    const fileExtension = path.extname(originalName).toLowerCase()
+
+    // Создаем уникальное имя файла с оригинальным расширением
+    const fileName = `${uuidv4()}${fileExtension}`
 
     // Создаем директорию для загрузок, если она не существует
     const uploadDir = join(process.cwd(), "public", "uploads")
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       url: fileUrl,
-      name: file.name,
+      name: originalName,
       size: file.size,
       type: file.type,
     })

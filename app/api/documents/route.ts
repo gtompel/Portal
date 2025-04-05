@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Проверка обяза��ельных полей
+    // Проверка обязательных полей
     if (!body.name || !body.type || !body.url || !body.creatorId) {
       return NextResponse.json({ error: "Название, тип, URL и ID создателя обязательны" }, { status: 400 })
     }

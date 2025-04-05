@@ -5,8 +5,11 @@ import { hash } from "bcrypt"
 // GET /api/users/[id] - Получить пользователя по ID
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Получаем id из params
+    const id = params.id
+
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         skills: true,
         education: true,
@@ -44,11 +47,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PUT /api/users/[id] - Обновить пользователя
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Получаем id из params
+    const id = params.id
+
     const body = await request.json()
 
     // Проверяем, существует ли пользователь
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existingUser) {
@@ -79,7 +85,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     // Обновляем пользователя
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -109,9 +115,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 // DELETE /api/users/[id] - Удалить пользователя
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Получаем id из params
+    const id = params.id
+
     // Проверяем, существует ли пользователь
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existingUser) {
@@ -120,7 +129,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // Удаляем пользователя
     await prisma.user.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ message: "Пользователь успешно удален" })

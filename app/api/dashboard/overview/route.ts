@@ -30,7 +30,7 @@ export async function GET() {
         }))
       : []
 
-    // Получаем статистику по статусам задач
+    // Получаем статистику ��о статусам задач
     const taskStatusCounts = await prisma.task.groupBy({
       by: ["status"],
       _count: {
@@ -59,7 +59,7 @@ export async function GET() {
       color: statusColors[status.status as keyof typeof statusColors] || "#94a3b8",
     }))
 
-    // Получаем статистику по типам докум��нтов
+    // Получаем статистику по типам документов
     const documentTypeCounts = await prisma.document.groupBy({
       by: ["type"],
       _count: {

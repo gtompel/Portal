@@ -8,10 +8,48 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Mail, Phone, MapPin, Briefcase, Calendar, MessageSquare, Camera, Loader2 } from "lucide-react"
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+  Calendar,
+  MessageSquare,
+  Camera,
+  Loader2,
+  Plus,
+  Edit,
+  Trash,
+  PencilLine,
+} from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useSession } from "next-auth/react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 type EmployeeDetails = {
   id: string
@@ -67,8 +105,61 @@ export function EmployeeProfile({ id }: { id: string }) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isEditingBio, setIsEditingBio] = useState(false)
+  const [isAddingEducation, setIsAddingEducation] = useState(false)
+  const [isEditingEducation, setIsEditingEducation] = useState(false)
+  const [currentEducation, setCurrentEducation] = useState<any>(null)
+  const [isAddingExperience, setIsAddingExperience] = useState(false)
+  const [isEditingExperience, setIsEditingExperience] = useState(false)
+  const [currentExperience, setCurrentExperience] = useState<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // Форма для редактирования биографии
+  const bioSchema = z.object({
+    bio: z.string().optional(),
+  })
+
+  const bioForm = useForm<z.infer<typeof bioSchema>>({
+    resolver: zodResolver(bioSchema),
+    defaultValues: {
+      bio: employeeData?.bio || "",
+    },
+  })
+
+  // Форма для образования
+  const educationSchema = z.object({
+    degree: z.string().min(2, "Укажите степень/квалификацию"),
+    institution: z.string().min(2, "Укажите учебное заведение"),
+    year: z.string().min(4, "Укажите год"),
+  })
+
+  const educationForm = useForm<z.infer<typeof educationSchema>>({
+    resolver: zodResolver(educationSchema),
+    defaultValues: {
+      degree: "",
+      institution: "",
+      year: "",
+    },
+  })
+
+  // Форма для опыта работы
+  const experienceSchema = z.object({
+    position: z.string().min(2, "Укажите должность"),
+    company: z.string().min(2, "Укажите компанию"),
+    period: z.string().min(2, "Укажите период работы"),
+    description: z.string().optional(),
+  })
+
+  const experienceForm = useForm<z.infer<typeof experienceSchema>>({
+    resolver: zodResolver(experienceSchema),
+    defaultValues: {
+      position: "",
+      company: "",
+      period: "",
+      description: "",
+    },
+  })
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
@@ -82,6 +173,9 @@ export function EmployeeProfile({ id }: { id: string }) {
 
         const data = await response.json()
         setEmployeeData(data)
+
+        // Устанавливаем значение биографии в форму
+        bioForm.setValue("bio", data.bio || "")
       } catch (err) {
         console.error("Ошибка при загрузке данных сотрудника:", err)
         setError("Не удалось загрузить данные сотрудника")
@@ -93,7 +187,26 @@ export function EmployeeProfile({ id }: { id: string }) {
     if (id) {
       fetchEmployeeData()
     }
-  }, [id])
+  }, [id, bioForm])
+
+  // Устанавливаем значения в форму редактирования образования
+  useEffect(() => {
+    if (currentEducation) {
+      educationForm.setValue("degree", currentEducation.degree)
+      educationForm.setValue("institution", currentEducation.institution)
+      educationForm.setValue("year", currentEducation.year)
+    }
+  }, [currentEducation, educationForm])
+
+  // Устанавливаем значения в форму редактирования опыта работы
+  useEffect(() => {
+    if (currentExperience) {
+      experienceForm.setValue("position", currentExperience.position)
+      experienceForm.setValue("company", currentExperience.company)
+      experienceForm.setValue("period", currentExperience.period)
+      experienceForm.setValue("description", currentExperience.description || "")
+    }
+  }, [currentExperience, experienceForm])
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -156,6 +269,275 @@ export function EmployeeProfile({ id }: { id: string }) {
       })
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const updateBio = async (data: z.infer<typeof bioSchema>) => {
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bio: data.bio,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось обновить информацию")
+      }
+
+      const updatedUser = await response.json()
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          bio: data.bio || null,
+        })
+      }
+
+      setIsEditingBio(false)
+      toast({
+        title: "Успешно",
+        description: "Информация о сотруднике обновлена",
+      })
+    } catch (err) {
+      console.error("Ошибка при обновлении информации:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить информацию",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const addEducation = async (data: z.infer<typeof educationSchema>) => {
+    try {
+      const response = await fetch(`/api/users/${id}/education`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось добавить образование")
+      }
+
+      const newEducation = await response.json()
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          education: [...employeeData.education, newEducation],
+        })
+      }
+
+      setIsAddingEducation(false)
+      educationForm.reset()
+      toast({
+        title: "Успешно",
+        description: "Информация об образовании добавлена",
+      })
+    } catch (err) {
+      console.error("Ошибка при добавлении образования:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось добавить образование",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const updateEducation = async (data: z.infer<typeof educationSchema>) => {
+    if (!currentEducation) return
+
+    try {
+      const response = await fetch(`/api/users/${id}/education/${currentEducation.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось обновить образование")
+      }
+
+      const updatedEducation = await response.json()
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          education: employeeData.education.map((edu) => (edu.id === currentEducation.id ? updatedEducation : edu)),
+        })
+      }
+
+      setIsEditingEducation(false)
+      setCurrentEducation(null)
+      toast({
+        title: "Успешно",
+        description: "Информация об образовании обновлена",
+      })
+    } catch (err) {
+      console.error("Ошибка при обновлении образования:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить образование",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteEducation = async (educationId: string) => {
+    try {
+      const response = await fetch(`/api/users/${id}/education/${educationId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось удалить образование")
+      }
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          education: employeeData.education.filter((edu) => edu.id !== educationId),
+        })
+      }
+
+      toast({
+        title: "Успешно",
+        description: "Информация об образовании удалена",
+      })
+    } catch (err) {
+      console.error("Ошибка при удалении образования:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить образование",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const addExperience = async (data: z.infer<typeof experienceSchema>) => {
+    try {
+      const response = await fetch(`/api/users/${id}/experience`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось добавить опыт работы")
+      }
+
+      const newExperience = await response.json()
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          experience: [...employeeData.experience, newExperience],
+        })
+      }
+
+      setIsAddingExperience(false)
+      experienceForm.reset()
+      toast({
+        title: "Успешно",
+        description: "Информация об опыте работы добавлена",
+      })
+    } catch (err) {
+      console.error("Ошибка при добавлении опыта работы:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось добавить опыт работы",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const updateExperience = async (data: z.infer<typeof experienceSchema>) => {
+    if (!currentExperience) return
+
+    try {
+      const response = await fetch(`/api/users/${id}/experience/${currentExperience.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось обновить опыт работы")
+      }
+
+      const updatedExperience = await response.json()
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          experience: employeeData.experience.map((exp) => (exp.id === currentExperience.id ? updatedExperience : exp)),
+        })
+      }
+
+      setIsEditingExperience(false)
+      setCurrentExperience(null)
+      toast({
+        title: "Успешно",
+        description: "Информация об опыте работы обновлена",
+      })
+    } catch (err) {
+      console.error("Ошибка при обновлении опыта работы:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить опыт работы",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteExperience = async (experienceId: string) => {
+    try {
+      const response = await fetch(`/api/users/${id}/experience/${experienceId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось удалить опыт работы")
+      }
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          experience: employeeData.experience.filter((exp) => exp.id !== experienceId),
+        })
+      }
+
+      toast({
+        title: "Успешно",
+        description: "Информация об опыте работы удалена",
+      })
+    } catch (err) {
+      console.error("Ошибка при удалении опыта работы:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить опыт работы",
+        variant: "destructive",
+      })
     }
   }
 
@@ -345,13 +727,56 @@ export function EmployeeProfile({ id }: { id: string }) {
 
       <div className="lg:col-span-2 space-y-6">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-start justify-between">
             <CardTitle>О сотруднике</CardTitle>
+            {isOwnProfile && (
+              <Button variant="ghost" size="sm" onClick={() => setIsEditingBio(true)}>
+                <PencilLine className="h-4 w-4 mr-1" />
+                Редактировать
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <p>{employeeData.bio || "Информация отсутствует"}</p>
           </CardContent>
         </Card>
+
+        <Dialog open={isEditingBio} onOpenChange={setIsEditingBio}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Редактировать информацию</DialogTitle>
+              <DialogDescription>Расскажите о себе, своих интересах и профессиональных целях</DialogDescription>
+            </DialogHeader>
+            <Form {...bioForm}>
+              <form onSubmit={bioForm.handleSubmit(updateBio)} className="space-y-4">
+                <FormField
+                  control={bioForm.control}
+                  name="bio"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>О себе</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Расскажите о себе..."
+                          className="min-h-[150px]"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsEditingBio(false)}>
+                    Отмена
+                  </Button>
+                  <Button type="submit">Сохранить</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
 
         <Tabs defaultValue="experience">
           <TabsList className="grid grid-cols-3">
@@ -361,14 +786,61 @@ export function EmployeeProfile({ id }: { id: string }) {
           </TabsList>
 
           <TabsContent value="experience" className="space-y-4 mt-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Опыт работы</h3>
+              {isOwnProfile && (
+                <Button size="sm" onClick={() => setIsAddingExperience(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Добавить
+                </Button>
+              )}
+            </div>
+
             {employeeData.experience && employeeData.experience.length > 0 ? (
               employeeData.experience.map((exp) => (
                 <Card key={exp.id}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{exp.position}</CardTitle>
-                    <CardDescription>
-                      {exp.company} | {exp.period}
-                    </CardDescription>
+                    <div className="flex justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{exp.position}</CardTitle>
+                        <CardDescription>
+                          {exp.company} | {exp.period}
+                        </CardDescription>
+                      </div>
+                      {isOwnProfile && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setCurrentExperience(exp)
+                              setIsEditingExperience(true)
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Trash className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Это действие нельзя отменить. Запись об опыте работы будет удалена.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteExperience(exp.id)}>Удалить</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <p>{exp.description}</p>
@@ -385,14 +857,61 @@ export function EmployeeProfile({ id }: { id: string }) {
           </TabsContent>
 
           <TabsContent value="education" className="space-y-4 mt-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Образование</h3>
+              {isOwnProfile && (
+                <Button size="sm" onClick={() => setIsAddingEducation(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Добавить
+                </Button>
+              )}
+            </div>
+
             {employeeData.education && employeeData.education.length > 0 ? (
               employeeData.education.map((edu) => (
                 <Card key={edu.id}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{edu.degree}</CardTitle>
-                    <CardDescription>
-                      {edu.institution} | {edu.year}
-                    </CardDescription>
+                    <div className="flex justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{edu.degree}</CardTitle>
+                        <CardDescription>
+                          {edu.institution} | {edu.year}
+                        </CardDescription>
+                      </div>
+                      {isOwnProfile && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setCurrentEducation(edu)
+                              setIsEditingEducation(true)
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Trash className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Это действие нельзя отменить. Запись об образовании будет удалена.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteEducation(edu.id)}>Удалить</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                 </Card>
               ))
@@ -432,6 +951,292 @@ export function EmployeeProfile({ id }: { id: string }) {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Диалог добавления образования */}
+      <Dialog open={isAddingEducation} onOpenChange={setIsAddingEducation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить образование</DialogTitle>
+            <DialogDescription>Укажите информацию о вашем образовании</DialogDescription>
+          </DialogHeader>
+          <Form {...educationForm}>
+            <form onSubmit={educationForm.handleSubmit(addEducation)} className="space-y-4">
+              <FormField
+                control={educationForm.control}
+                name="degree"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Степень/Квалификация</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: Бакалавр информатики" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={educationForm.control}
+                name="institution"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Учебное заведение</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: МГУ им. Ломоносова" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={educationForm.control}
+                name="year"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Год окончания</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: 2020" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddingEducation(false)}>
+                  Отмена
+                </Button>
+                <Button type="submit">Добавить</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог редактирования образования */}
+      <Dialog open={isEditingEducation} onOpenChange={setIsEditingEducation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать образование</DialogTitle>
+            <DialogDescription>Измените информацию о вашем образовании</DialogDescription>
+          </DialogHeader>
+          <Form {...educationForm}>
+            <form onSubmit={educationForm.handleSubmit(updateEducation)} className="space-y-4">
+              <FormField
+                control={educationForm.control}
+                name="degree"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Степень/Квалификация</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: Бакалавр информатики" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={educationForm.control}
+                name="institution"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Учебное заведение</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: МГУ им. Ломоносова" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={educationForm.control}
+                name="year"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Год окончания</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: 2020" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditingEducation(false)
+                    setCurrentEducation(null)
+                  }}
+                >
+                  Отмена
+                </Button>
+                <Button type="submit">Сохранить</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог добавления опыта работы */}
+      <Dialog open={isAddingExperience} onOpenChange={setIsAddingExperience}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить опыт работы</DialogTitle>
+            <DialogDescription>Укажите информацию о вашем опыте работы</DialogDescription>
+          </DialogHeader>
+          <Form {...experienceForm}>
+            <form onSubmit={experienceForm.handleSubmit(addExperience)} className="space-y-4">
+              <FormField
+                control={experienceForm.control}
+                name="position"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Должность</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: Старший разработчик" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={experienceForm.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Компания</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: ООО 'Технологии'" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={experienceForm.control}
+                name="period"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Период работы</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: 2018-2022" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={experienceForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Описание</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Опишите ваши обязанности и достижения..."
+                        className="min-h-[100px]"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddingExperience(false)}>
+                  Отмена
+                </Button>
+                <Button type="submit">Добавить</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог редактирования опыта работы */}
+      <Dialog open={isEditingExperience} onOpenChange={setIsEditingExperience}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать опыт работы</DialogTitle>
+            <DialogDescription>Измените информацию о вашем опыте работы</DialogDescription>
+          </DialogHeader>
+          <Form {...experienceForm}>
+            <form onSubmit={experienceForm.handleSubmit(updateExperience)} className="space-y-4">
+              <FormField
+                control={experienceForm.control}
+                name="position"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Должность</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: Старший разработчик" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={experienceForm.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Компания</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: ООО 'Технологии'" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={experienceForm.control}
+                name="period"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Период работы</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Например: 2018-2022" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={experienceForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Описание</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Опишите ваши обязанности и достижения..."
+                        className="min-h-[100px]"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditingExperience(false)
+                    setCurrentExperience(null)
+                  }}
+                >
+                  Отмена
+                </Button>
+                <Button type="submit">Сохранить</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
