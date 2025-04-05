@@ -271,17 +271,17 @@ export function RecentDocuments() {
     }
   }
 
-  const handleDownloadDocument = (document: Document) => {
+  const handleDownloadDocument = (doc: Document) => {
     // Создаем ссылку для скачивания
-    const link = document.url
+    const link = doc.url
 
     // Создаем временный элемент <a> для скачивания
     const a = window.document.createElement("a")
     a.href = link
-    a.download = document.name
-    document.body.appendChild(a)
+    a.download = doc.name
+    window.document.body.appendChild(a)
     a.click()
-    document.body.removeChild(a)
+    window.document.body.removeChild(a)
   }
 
   if (error) {

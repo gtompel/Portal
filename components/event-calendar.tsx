@@ -53,6 +53,19 @@ type Event = {
   }
 }
 
+type Task = {
+  id: string
+  title: string
+  description?: string
+  status: string
+  priority: string
+  dueDate: string
+  assignee?: {
+    id: string
+    name: string
+  }
+}
+
 type User = {
   id: string
   name: string
@@ -65,6 +78,7 @@ export function EventCalendar() {
   const [view, setView] = useState<"month" | "day">("month")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [events, setEvents] = useState<Event[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -98,6 +112,7 @@ export function EventCalendar() {
 
   useEffect(() => {
     fetchEvents()
+    fetchTasks()
     fetchUsers()
   }, [])
 
@@ -136,6 +151,35 @@ export function EventCalendar() {
       setError("Не удалось загрузить события")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch("/api/tasks")
+
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить задачи")
+      }
+
+      const data = await response.json()
+
+      // Фильтруем задачи с установленной датой выполнения
+      const tasksWithDueDate = data
+        .filter((task: any) => task.dueDate)
+        .map((task: any) => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          dueDate: task.dueDate,
+          assignee: task.assignee,
+        }))
+
+      setTasks(tasksWithDueDate)
+    } catch (err) {
+      console.error("Ошибка при загрузке задач:", err)
     }
   }
 
@@ -247,17 +291,35 @@ export function EventCalendar() {
     setView("month")
   }
 
-  const getEventsByDate = (date: Date) => {
-    return events.filter(
+  // Получаем события и задачи для выбранной даты
+  const getEventsAndTasksForDate = (date: Date) => {
+    const eventsForDate = events.filter(
       (event) =>
         event.date.getDate() === date.getDate() &&
         event.date.getMonth() === date.getMonth() &&
         event.date.getFullYear() === date.getFullYear(),
     )
+
+    const tasksForDate = tasks.filter((task) => {
+      if (!task.dueDate) return false
+      const dueDate = new Date(task.dueDate)
+      return (
+        dueDate.getDate() === date.getDate() &&
+        dueDate.getMonth() === date.getMonth() &&
+        dueDate.getFullYear() === date.getFullYear()
+      )
+    })
+
+    return { events: eventsForDate, tasks: tasksForDate }
   }
 
-  const getDaysWithEvents = () => {
-    return events.map((event) => event.date)
+  // Получаем все даты, на которые есть события или задачи
+  const getDaysWithEventsOrTasks = () => {
+    const eventDates = events.map((event) => event.date)
+
+    const taskDates = tasks.filter((task) => task.dueDate).map((task) => new Date(task.dueDate))
+
+    return [...eventDates, ...taskDates]
   }
 
   const getEventTypeColor = (type: Event["type"]) => {
@@ -287,6 +349,32 @@ export function EventCalendar() {
         return "отпуск"
       default:
         return type.toLowerCase()
+    }
+  }
+
+  const getTaskPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "HIGH":
+        return "bg-red-100 text-red-800"
+      case "MEDIUM":
+        return "bg-yellow-100 text-yellow-800"
+      case "LOW":
+        return "bg-green-100 text-green-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getTaskPriorityText = (priority: string) => {
+    switch (priority) {
+      case "HIGH":
+        return "высокий"
+      case "MEDIUM":
+        return "средний"
+      case "LOW":
+        return "низкий"
+      default:
+        return priority.toLowerCase()
     }
   }
 
@@ -329,8 +417,8 @@ export function EventCalendar() {
     setDate(newDate)
   }
 
-  const daysWithEvents = getDaysWithEvents()
-  const eventsForSelectedDate = getEventsByDate(selectedDate)
+  const daysWithEventsOrTasks = getDaysWithEventsOrTasks()
+  const { events: eventsForSelectedDate, tasks: tasksForSelectedDate } = getEventsAndTasksForDate(selectedDate)
 
   if (error) {
     return (
@@ -586,7 +674,7 @@ export function EventCalendar() {
               className="rounded-md border"
               locale={ru}
               modifiers={{
-                hasEvent: daysWithEvents,
+                hasEvent: daysWithEventsOrTasks,
               }}
               modifiersStyles={{
                 hasEvent: {
@@ -613,65 +701,112 @@ export function EventCalendar() {
                 })}
               </CardTitle>
               <CardDescription>
-                {eventsForSelectedDate.length}{" "}
-                {eventsForSelectedDate.length === 1
+                {eventsForSelectedDate.length + tasksForSelectedDate.length}{" "}
+                {eventsForSelectedDate.length + tasksForSelectedDate.length === 1
                   ? "событие"
-                  : eventsForSelectedDate.length >= 2 && eventsForSelectedDate.length <= 4
+                  : eventsForSelectedDate.length + tasksForSelectedDate.length >= 2 &&
+                      eventsForSelectedDate.length + tasksForSelectedDate.length <= 4
                     ? "события"
                     : "событий"}
               </CardDescription>
             </CardHeader>
           </Card>
 
-          {eventsForSelectedDate.length > 0 ? (
+          {eventsForSelectedDate.length > 0 || tasksForSelectedDate.length > 0 ? (
             <div className="space-y-4">
-              {eventsForSelectedDate.map((event) => (
-                <Card key={event.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>{event.title}</CardTitle>
-                        <CardDescription>
-                          {event.startTime} - {event.endTime}
-                        </CardDescription>
-                      </div>
-                      <Badge variant="outline" className={getEventTypeColor(event.type)}>
-                        {getEventTypeText(event.type)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <p className="mb-4">{event.description}</p>
-                    <div className="grid gap-2">
-                      {event.location && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{event.location}</span>
+              {/* События */}
+              {eventsForSelectedDate.length > 0 && (
+                <>
+                  <h3 className="text-lg font-medium">События</h3>
+                  {eventsForSelectedDate.map((event) => (
+                    <Card key={event.id}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle>{event.title}</CardTitle>
+                            <CardDescription>
+                              {event.startTime} - {event.endTime}
+                            </CardDescription>
+                          </div>
+                          <Badge variant="outline" className={getEventTypeColor(event.type)}>
+                            {getEventTypeText(event.type)}
+                          </Badge>
                         </div>
-                      )}
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span>
-                          {event.startTime} - {event.endTime}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        <span>
-                          {event.participants.length > 0
-                            ? event.participants.map((p) => p.user.name).join(", ")
-                            : "Нет участников"}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button variant="outline" className="w-full">
-                      Редактировать
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+                      </CardHeader>
+                      <CardContent className="pb-2">
+                        <p className="mb-4">{event.description}</p>
+                        <div className="grid gap-2">
+                          {event.location && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <MapPin className="h-4 w-4" />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span>
+                              {event.startTime} - {event.endTime}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Users className="h-4 w-4" />
+                            <span>
+                              {event.participants.length > 0
+                                ? event.participants.map((p) => p.user.name).join(", ")
+                                : "Нет участников"}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button variant="outline" className="w-full">
+                          Редактировать
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </>
+              )}
+
+              {/* Задачи */}
+              {tasksForSelectedDate.length > 0 && (
+                <>
+                  <h3 className="text-lg font-medium">Задачи</h3>
+                  {tasksForSelectedDate.map((task) => (
+                    <Card key={task.id}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle>{task.title}</CardTitle>
+                            <CardDescription>
+                              Срок: {new Date(task.dueDate).toLocaleDateString("ru-RU")}
+                            </CardDescription>
+                          </div>
+                          <Badge variant="outline" className={getTaskPriorityColor(task.priority)}>
+                            Приоритет: {getTaskPriorityText(task.priority)}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pb-2">
+                        <p className="mb-4">{task.description || "Описание отсутствует"}</p>
+                        <div className="grid gap-2">
+                          {task.assignee && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              <span>Исполнитель: {task.assignee.name}</span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button variant="outline" className="w-full">
+                          Перейти к задаче
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </>
+              )}
             </div>
           ) : (
             <Card>

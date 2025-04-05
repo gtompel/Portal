@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Search, Settings, Calendar, CheckSquare } from "lucide-react"
+import { Bell, Search, Settings, Calendar, CheckSquare, MessageSquare } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,76 +20,174 @@ import { Badge } from "@/components/ui/badge"
 
 type Notification = {
   id: string
-  type: "event" | "task"
+  type: "EVENT" | "TASK" | "MESSAGE"
   title: string
-  date: string
+  description: string
+  date: string | null
+  createdAt: string
   read: boolean
+  entityId: string
+  creatorName: string
 }
 
 export default function Header() {
   const { data: session } = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [tasks, setTasks] = useState<any[]>([])
+  const [events, setEvents] = useState<any[]>([])
+  const [messages, setMessages] = useState<any[]>([])
 
-  // Fetch notifications on component mount
+  // Fetch data on component mount
   useEffect(() => {
     if (session?.user?.id) {
-      fetchNotifications()
+      fetchNotificationData()
     }
   }, [session])
 
-  const fetchNotifications = async () => {
+  // Загрузка данных для уведомлений
+  const fetchNotificationData = async () => {
     try {
-      // Fetch upcoming events
-      const eventsResponse = await fetch("/api/events")
-      const events = await eventsResponse.json()
+      if (!session?.user?.id) return
 
-      // Fetch tasks with upcoming deadlines
+      // Загружаем задачи
       const tasksResponse = await fetch("/api/tasks")
-      const tasks = await tasksResponse.json()
+      if (tasksResponse.ok) {
+        const tasksData = await tasksResponse.json()
+        setTasks(tasksData)
+      }
 
-      // Create notifications from events and tasks
-      const eventNotifications = events
-        .filter((event: any) => {
-          // Filter events that are coming up in the next 3 days
-          const eventDate = new Date(event.date)
-          const today = new Date()
-          const threeDaysFromNow = new Date()
-          threeDaysFromNow.setDate(today.getDate() + 3)
-          return eventDate >= today && eventDate <= threeDaysFromNow
-        })
-        .map((event: any) => ({
-          id: `event-${event.id}`,
-          type: "event" as const,
-          title: event.title,
-          date: new Date(event.date).toLocaleDateString("ru-RU"),
-          read: false,
-        }))
+      // Загружаем события
+      const eventsResponse = await fetch("/api/events")
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json()
+        setEvents(eventsData)
+      }
 
-      const taskNotifications = tasks
-        .filter((task: any) => {
-          // Filter tasks with upcoming deadlines
-          if (!task.dueDate) return false
-          const dueDate = new Date(task.dueDate)
-          const today = new Date()
-          const threeDaysFromNow = new Date()
-          threeDaysFromNow.setDate(today.getDate() + 3)
-          return dueDate >= today && dueDate <= threeDaysFromNow && task.status !== "COMPLETED"
-        })
-        .map((task: any) => ({
-          id: `task-${task.id}`,
-          type: "task" as const,
-          title: task.title,
-          date: new Date(task.dueDate).toLocaleDateString("ru-RU"),
-          read: false,
-        }))
+      // Загружаем сообщения
+      const messagesResponse = await fetch(`/api/messages?receiverId=${session.user.id}`)
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json()
+        setMessages(messagesData)
+      }
 
-      const allNotifications = [...eventNotifications, ...taskNotifications]
-      setNotifications(allNotifications)
-      setUnreadCount(allNotifications.length)
+      // Создаем уведомления на основе полученных данных
+      generateNotifications()
     } catch (error) {
-      console.error("Error fetching notifications:", error)
+      console.error("Ошибка при загрузке данных для уведомлений:", error)
     }
+  }
+
+  // Генерация уведомлений на основе данных
+  const generateNotifications = () => {
+    const now = new Date()
+    const threeDaysFromNow = new Date(now)
+    threeDaysFromNow.setDate(now.getDate() + 3)
+
+    // Уведомления о предстоящих событиях
+    const eventNotifications = events
+      .filter((event) => {
+        const eventDate = new Date(event.date)
+        return eventDate >= now && eventDate <= threeDaysFromNow
+      })
+      .map((event) => ({
+        id: `event-${event.id}`,
+        type: "EVENT" as const,
+        title: event.title,
+        description: `Событие состоится ${new Date(event.date).toLocaleDateString("ru-RU")} в ${event.startTime}`,
+        date: event.date,
+        createdAt: event.createdAt || now.toISOString(),
+        read: false,
+        entityId: event.id,
+        creatorName: event.creator?.name || "Система",
+      }))
+
+    // Уведомления о задачах с приближающимся сроком
+    const taskNotifications = tasks
+      .filter((task) => {
+        if (!task.dueDate) return false
+        const dueDate = new Date(task.dueDate)
+        return dueDate >= now && dueDate <= threeDaysFromNow && task.status !== "COMPLETED"
+      })
+      .map((task) => ({
+        id: `task-${task.id}`,
+        type: "TASK" as const,
+        title: task.title,
+        description: `Срок выполнения задачи: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "Не указан"}`,
+        date: task.dueDate,
+        createdAt: task.createdAt || now.toISOString(),
+        read: false,
+        entityId: task.id,
+        creatorName: task.creator?.name || "Система",
+      }))
+
+    // Уведомления о непрочитанных сообщениях
+    const messageNotifications = messages
+      .filter((message) => !message.read)
+      .map((message) => ({
+        id: `message-${message.id}`,
+        type: "MESSAGE" as const,
+        title: `Сообщение от ${message.sender.name}`,
+        description: message.content.length > 50 ? `${message.content.substring(0, 50)}...` : message.content,
+        date: null,
+        createdAt: message.createdAt || now.toISOString(),
+        read: false,
+        entityId: message.id,
+        creatorName: message.sender.name,
+      }))
+
+    // Если данных нет, добавляем демо-уведомления
+    const demoNotifications: Notification[] = []
+    if (eventNotifications.length === 0 && taskNotifications.length === 0 && messageNotifications.length === 0) {
+      demoNotifications.push(
+        {
+          id: "event-demo-1",
+          type: "EVENT",
+          title: "Встреча команды",
+          description: "Событие состоится 15.05.2025 в 14:00",
+          date: "2025-05-15T14:00:00",
+          createdAt: new Date().toISOString(),
+          read: false,
+          entityId: "demo-1",
+          creatorName: "Администратор",
+        },
+        {
+          id: "task-demo-1",
+          type: "TASK",
+          title: "Завершить отчет",
+          description: "Срок выполнения задачи: 10.05.2025",
+          date: "2025-05-10T18:00:00",
+          createdAt: new Date().toISOString(),
+          read: false,
+          entityId: "demo-2",
+          creatorName: "Руководитель проекта",
+        },
+        {
+          id: "message-demo-1",
+          type: "MESSAGE",
+          title: "Новое сообщение",
+          description: "Добрый день! Хотел уточнить детали по проекту...",
+          date: null,
+          createdAt: new Date().toISOString(),
+          read: false,
+          entityId: "demo-3",
+          creatorName: "Иван Петров",
+        },
+      )
+    }
+
+    // Объединяем и сортируем уведомления по дате создания (сначала новые)
+    const allNotifications = [
+      ...eventNotifications,
+      ...taskNotifications,
+      ...messageNotifications,
+      ...demoNotifications,
+    ]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10) // Ограничиваем количество уведомлений
+
+    setNotifications(allNotifications)
+    setUnreadCount(allNotifications.length)
   }
 
   const markAsRead = (id: string) => {
@@ -158,17 +256,18 @@ export default function Header() {
                     onClick={() => markAsRead(notification.id)}
                   >
                     <div className="mt-0.5">
-                      {notification.type === "event" ? (
+                      {notification.type === "EVENT" ? (
                         <Calendar className="h-5 w-5 text-blue-500" />
-                      ) : (
+                      ) : notification.type === "TASK" ? (
                         <CheckSquare className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <MessageSquare className="h-5 w-5 text-purple-500" />
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">
-                        {notification.type === "event" ? "Событие" : "Задача"}: {notification.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Дата: {notification.date}</p>
+                      <p className="text-sm font-medium">{notification.title}</p>
+                      <p className="text-xs text-muted-foreground">{notification.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1">От: {notification.creatorName}</p>
                     </div>
                   </div>
                 ))
@@ -178,9 +277,11 @@ export default function Header() {
             </div>
           </PopoverContent>
         </Popover>
-        <Button variant="outline" size="icon" className="rounded-full">
-          <Settings className="h-4 w-4" />
-          <span className="sr-only">Настройки</span>
+        <Button variant="outline" size="icon" className="rounded-full" asChild>
+          <Link href="/settings">
+            <Settings className="h-4 w-4" />
+            <span className="sr-only">Настройки</span>
+          </Link>
         </Button>
         {session?.user && (
           <DropdownMenu>

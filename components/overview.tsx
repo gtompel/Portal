@@ -57,7 +57,7 @@ export function Overview() {
         const data = await response.json()
         setData(data)
       } catch (err) {
-        console.error("Ошибка при загрузке данных обзора:", err)
+        console.error("Ошиб��а при загрузке данных обзора:", err)
         setError("Не удалось загрузить данные обзора")
       } finally {
         setIsLoading(false)

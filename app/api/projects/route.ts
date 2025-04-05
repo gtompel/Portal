@@ -1,130 +1,112 @@
 import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 
-// Функция для преобразования BigInt в числа
-function serializeBigInt(data: any): any {
-  if (data === null || data === undefined) {
-    return data
-  }
-
-  if (typeof data === "bigint") {
-    return Number(data)
-  }
-
-  if (Array.isArray(data)) {
-    return data.map((item) => serializeBigInt(item))
-  }
-
-  if (typeof data === "object") {
-    const result: any = {}
-    for (const key in data) {
-      result[key] = serializeBigInt(data[key])
-    }
-    return result
-  }
-
-  return data
-}
-
-// GET /api/analytics/projects - Получить данные о проектах и задачах
+// GET /api/projects - Получить все проекты
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const period = searchParams.get("period") || "year"
+    const status = searchParams.get("status")
+    const search = searchParams.get("search")
+    const userId = searchParams.get("userId")
 
-    // Определяем начальную дату для периода
-    const startDate = new Date()
-    if (period === "month") {
-      startDate.setMonth(startDate.getMonth() - 1)
-    } else if (period === "quarter") {
-      startDate.setMonth(startDate.getMonth() - 3)
-    } else if (period === "year") {
-      startDate.setFullYear(startDate.getFullYear() - 1)
+    const whereClause: any = {}
+
+    if (status && status !== "all") {
+      whereClause.status = status
     }
 
-    // Получаем статистику по статусам задач
-    const taskStatusStats = await prisma.task.groupBy({
-      by: ["status"],
-      _count: {
-        id: true,
-      },
-      where: {
-        createdAt: {
-          gte: startDate,
-        },
-      },
-    })
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ]
+    }
 
-    // Получаем статистику по приоритетам задач
-    const taskPriorityStats = await prisma.task.groupBy({
-      by: ["priority"],
-      _count: {
-        id: true,
-      },
-      where: {
-        createdAt: {
-          gte: startDate,
+    // Если указан userId, ищем проекты, в которых пользователь является участником
+    if (userId) {
+      whereClause.members = {
+        some: {
+          userId: userId,
         },
-      },
-    })
+      }
+    }
 
-    // Получаем задачи с ближайшими сроками
-    const upcomingTasks = await prisma.task.findMany({
-      where: {
-        dueDate: {
-          gte: new Date(),
-        },
-        status: {
-          not: "COMPLETED",
-        },
-      },
+    const projects = await prisma.project.findMany({
+      where: whereClause,
       include: {
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            initials: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                initials: true,
+                position: true,
+              },
+            },
           },
         },
       },
       orderBy: {
-        dueDate: "asc",
+        updatedAt: "desc",
       },
-      take: 5,
     })
 
-    // Формируем данные о проектах и задачах
-    const projectsData = {
-      taskStatusStats: taskStatusStats.map((stat) => ({
-        status: stat.status,
-        count: stat._count.id,
-      })),
-      taskPriorityStats: taskPriorityStats.map((stat) => ({
-        priority: stat.priority,
-        count: stat._count.id,
-      })),
-      upcomingTasks: upcomingTasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        dueDate: task.dueDate,
-        assignee: task.assignee
-          ? {
-              id: task.assignee.id,
-              name: task.assignee.name,
-              avatar: task.assignee.avatar,
-              initials: task.assignee.initials,
-            }
-          : null,
-      })),
+    return NextResponse.json(projects)
+  } catch (error) {
+    console.error("Ошибка при получении проектов:", error)
+    return NextResponse.json({ error: "Ошибка при получении проектов" }, { status: 500 })
+  }
+}
+
+// POST /api/projects - Создать новый проект
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    // Проверка обязательных полей
+    if (!body.name || !body.startDate) {
+      return NextResponse.json({ error: "Название и дата начала обязательны" }, { status: 400 })
     }
 
-    return NextResponse.json(serializeBigInt(projectsData))
+    // Создание проекта
+    const project = await prisma.project.create({
+      data: {
+        name: body.name,
+        description: body.description || null,
+        status: body.status || "ACTIVE",
+        startDate: new Date(body.startDate),
+        endDate: body.endDate ? new Date(body.endDate) : null,
+        members: {
+          create:
+            body.members?.map((member: any) => ({
+              userId: member.userId,
+              role: member.role,
+            })) || [],
+        },
+      },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                initials: true,
+                position: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    return NextResponse.json(project, { status: 201 })
   } catch (error) {
-    console.error("Ошибка при получении данных о проектах:", error)
-    return NextResponse.json({ error: "Ошибка при получении данных о проектах" }, { status: 500 })
+    console.error("Ошибка при создании проекта:", error)
+    return NextResponse.json({ error: "Ошибка при создании проекта" }, { status: 500 })
   }
 }
 

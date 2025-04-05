@@ -59,7 +59,7 @@ export async function GET() {
       color: statusColors[status.status as keyof typeof statusColors] || "#94a3b8",
     }))
 
-    // Получаем статистику по типам документов
+    // Получаем статистику по типам докум��нтов
     const documentTypeCounts = await prisma.document.groupBy({
       by: ["type"],
       _count: {

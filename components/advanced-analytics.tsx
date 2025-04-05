@@ -61,13 +61,14 @@ export function AdvancedAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [users, setUsers] = useState<{ id: string; name: string }[]>([])
   const [tasks, setTasks] = useState<any[]>([])
+  const [projectData, setProjectData] = useState<any>(null)
 
-  // Replace the generateAnalyticsData function with a real data fetching function
+  // Функция для загрузки данных аналитики
   const fetchAnalyticsData = async (period: string) => {
     try {
       setIsLoading(true)
 
-      // Fetch real analytics data from the API
+      // Загружаем данные о производительности
       const response = await fetch(`/api/analytics/performance?period=${period}`)
 
       if (!response.ok) {
@@ -76,7 +77,7 @@ export function AdvancedAnalytics() {
 
       const analyticsData = await response.json()
 
-      // Transform API data to the format expected by the component
+      // Преобразуем данные API в формат, ожидаемый компонентом
       const formattedData: AnalyticsData = {
         performanceData: analyticsData.tasksByMonth.map((item: any) => ({
           month: item.month,
@@ -88,10 +89,10 @@ export function AdvancedAnalytics() {
           значение: Number(dept.efficiency) || 0,
         })),
         projectStatusData: [
-          { name: "Завершено", value: tasks.filter((task) => task.status === "COMPLETED").length, color: "#22c55e" },
-          { name: "В процессе", value: tasks.filter((task) => task.status === "IN_PROGRESS").length, color: "#3b82f6" },
-          { name: "На проверке", value: tasks.filter((task) => task.status === "REVIEW").length, color: "#a855f7" },
-          { name: "Новые", value: tasks.filter((task) => task.status === "NEW").length, color: "#eab308" },
+          { name: "Завершено", value: 0, color: "#22c55e" },
+          { name: "В процессе", value: 0, color: "#3b82f6" },
+          { name: "На проверке", value: 0, color: "#a855f7" },
+          { name: "Новые", value: 0, color: "#eab308" },
         ],
         employeePerformanceData: analyticsData.employeePerformance.map((emp: any) => ({
           name: emp.name.split(" ")[0] + " " + (emp.name.split(" ")[1]?.[0] || "") + ".",
@@ -99,7 +100,7 @@ export function AdvancedAnalytics() {
           эффективность: Number(emp.efficiency) || 0,
         })),
         resourceUtilizationData: analyticsData.tasksByMonth.map((item: any) => {
-          // Calculate resource utilization based on task completion rates
+          // Рассчитываем использование ресурсов на основе показателей выполнения задач
           const completionRate = Number(item.completed_count) / (Number(item.tasks_count) || 1)
           return {
             month: item.month,
@@ -119,7 +120,53 @@ export function AdvancedAnalytics() {
     }
   }
 
-  // Обновим useEffect для загрузки данных о проектах
+  // Загрузка данных о проектах
+  const fetchProjectData = async (period: string) => {
+    try {
+      // Загружаем данные о проектах
+      const response = await fetch(`/api/analytics/projects?period=${period}`)
+
+      if (!response.ok) {
+        console.warn("Не удалось загрузить данные о проектах, используем данные о задачах")
+        return
+      }
+
+      const projectsData = await response.json()
+      setProjectData(projectsData)
+
+      // Обновляем данные о статусах задач, если они доступны
+      if (projectsData.taskStatusStats && data) {
+        const statusColors = {
+          NEW: "#eab308",
+          IN_PROGRESS: "#3b82f6",
+          REVIEW: "#a855f7",
+          COMPLETED: "#22c55e",
+        }
+
+        const statusNames = {
+          NEW: "Новые",
+          IN_PROGRESS: "В процессе",
+          REVIEW: "На проверке",
+          COMPLETED: "Завершено",
+        }
+
+        const projectStatusData = projectsData.taskStatusStats.map((stat: any) => ({
+          name: statusNames[stat.status as keyof typeof statusNames] || stat.status,
+          value: stat.count,
+          color: statusColors[stat.status as keyof typeof statusColors] || "#94a3b8",
+        }))
+
+        setData({
+          ...data,
+          projectStatusData,
+        })
+      }
+    } catch (err) {
+      console.error("Ошибка при загрузке данных о проектах:", err)
+    }
+  }
+
+  // Загрузка данных при монтировании компонента и изменении периода
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -146,47 +193,42 @@ export function AdvancedAnalytics() {
         const tasksData = await tasksResponse.json()
         setTasks(tasksData)
 
-        // Загружаем данные о проектах
-        const projectsResponse = await fetch(`/api/analytics/projects?period=${period}`)
-        if (projectsResponse.ok) {
-          const projectsData = await projectsResponse.json()
-
-          // Обновляем данные о статусе проектов
-          if (projectsData.taskStatusStats) {
-            const statusColors = {
-              NEW: "#eab308",
-              IN_PROGRESS: "#3b82f6",
-              REVIEW: "#a855f7",
-              COMPLETED: "#22c55e",
-            }
-
-            const statusNames = {
-              NEW: "Новые",
-              IN_PROGRESS: "В процессе",
-              REVIEW: "На проверке",
-              COMPLETED: "Завершено",
-            }
-
-            const projectStatusData = projectsData.taskStatusStats.map((stat: any) => ({
-              name: statusNames[stat.status as keyof typeof statusNames] || stat.status,
-              value: stat.count,
-              color: statusColors[stat.status as keyof typeof statusColors] || "#94a3b8",
-            }))
-
-            if (data) {
-              setData({
-                ...data,
-                projectStatusData,
-              })
-            }
-          }
-        }
-
-        // Fetch real analytics data
+        // Загружаем данные аналитики
         await fetchAnalyticsData(period)
+
+        // Загружаем данные о проектах
+        await fetchProjectData(period)
+
+        // Если данные о проектах не загрузились, используем данные о задачах
+        if (!projectData && data) {
+          const taskStatusCounts = {
+            NEW: 0,
+            IN_PROGRESS: 0,
+            REVIEW: 0,
+            COMPLETED: 0,
+          }
+
+          tasksData.forEach((task: any) => {
+            if (taskStatusCounts[task.status as keyof typeof taskStatusCounts] !== undefined) {
+              taskStatusCounts[task.status as keyof typeof taskStatusCounts]++
+            }
+          })
+
+          const projectStatusData = [
+            { name: "Завершено", value: taskStatusCounts.COMPLETED, color: "#22c55e" },
+            { name: "В процессе", value: taskStatusCounts.IN_PROGRESS, color: "#3b82f6" },
+            { name: "На проверке", value: taskStatusCounts.REVIEW, color: "#a855f7" },
+            { name: "Новые", value: taskStatusCounts.NEW, color: "#eab308" },
+          ]
+
+          setData({
+            ...data,
+            projectStatusData,
+          })
+        }
       } catch (err) {
-        console.error("Ошибка при загрузке данных аналитики:", err)
-        setError("Не удалось загрузить данные аналитики")
+        console.error("Ошибка при загрузке данных:", err)
+        setError("Не удалось загрузить данные")
       } finally {
         setIsLoading(false)
       }
@@ -194,78 +236,6 @@ export function AdvancedAnalytics() {
 
     fetchData()
   }, [period])
-
-  // Функция для генерации аналитических данных на основе реальных данных
-  const generateAnalyticsData = (users: any[], tasks: any[], period: string): AnalyticsData => {
-    // Подготовка данных о выполнении задач по месяцам
-    const months = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн"]
-    const performanceData = months.map((month) => {
-      // В реальном приложении здесь был бы анализ задач по датам
-      const completedTasks = Math.floor(Math.random() * 20) + 30 // Заглушка
-      return {
-        month,
-        выполнено: completedTasks,
-        план: Math.floor(completedTasks * (Math.random() * 0.4 + 0.8)), // План примерно +/- 20% от выполненного
-      }
-    })
-
-    // Данные о производительности отделов
-    const departments = [...new Set(users.map((user) => user.department))]
-    const departmentPerformance = departments.map((dept) => {
-      const deptUsers = users.filter((user) => user.department === dept)
-      const deptUserIds = deptUsers.map((user) => user.id)
-
-      // Подсчет задач по отделам
-      const deptTasks = tasks.filter((task) => task.assigneeId && deptUserIds.includes(task.assigneeId))
-
-      const completedTasks = deptTasks.filter((task) => task.status === "COMPLETED").length
-      const totalTasks = deptTasks.length || 1 // Избегаем деления на ноль
-
-      return {
-        name: dept || "Не указан",
-        значение: Math.round((completedTasks / totalTasks) * 100),
-      }
-    })
-
-    // Данные о статусе проектов
-    const projectStatusData = [
-      { name: "Завершено", value: tasks.filter((task) => task.status === "COMPLETED").length, color: "#22c55e" },
-      { name: "В процессе", value: tasks.filter((task) => task.status === "IN_PROGRESS").length, color: "#3b82f6" },
-      { name: "На проверке", value: tasks.filter((task) => task.status === "REVIEW").length, color: "#a855f7" },
-      { name: "Новые", value: tasks.filter((task) => task.status === "NEW").length, color: "#eab308" },
-    ]
-
-    // Данные о производительности сотрудников
-    const employeePerformanceData = users
-      .filter((_, index) => index < 5) // Берем только первых 5 сотрудников для наглядности
-      .map((user) => {
-        const userTasks = tasks.filter((task) => task.assigneeId === user.id)
-        const completedTasks = userTasks.filter((task) => task.status === "COMPLETED").length
-        const totalTasks = userTasks.length || 1 // Избегаем деления на ноль
-
-        return {
-          name: user.name.split(" ")[0] + " " + (user.name.split(" ")[1]?.[0] || "") + ".",
-          задачи: userTasks.length,
-          эффективность: Math.round((completedTasks / totalTasks) * 100),
-        }
-      })
-
-    // Данные об использовании ресурсов
-    const resourceUtilizationData = months.map((month) => ({
-      month,
-      бюджет: Math.floor(Math.random() * 20) + 70,
-      время: Math.floor(Math.random() * 20) + 70,
-      персонал: Math.floor(Math.random() * 20) + 70,
-    }))
-
-    return {
-      performanceData,
-      departmentPerformance,
-      projectStatusData,
-      employeePerformanceData,
-      resourceUtilizationData,
-    }
-  }
 
   // Функция экспорта данных
   const handleExportData = () => {
@@ -287,6 +257,35 @@ export function AdvancedAnalytics() {
         </Card>
       </div>
     )
+  }
+
+  // Подготовка данных о статусах задач для отображения
+  const getTaskStatusData = () => {
+    // Если данные о проектах загружены, используем их
+    if (data?.projectStatusData && data.projectStatusData.some((item) => item.value > 0)) {
+      return data.projectStatusData
+    }
+
+    // Если данные не загружены или пусты, используем данные из задач
+    const taskStatusCounts = {
+      NEW: 0,
+      IN_PROGRESS: 0,
+      REVIEW: 0,
+      COMPLETED: 0,
+    }
+
+    tasks.forEach((task) => {
+      if (taskStatusCounts[task.status as keyof typeof taskStatusCounts] !== undefined) {
+        taskStatusCounts[task.status as keyof typeof taskStatusCounts]++
+      }
+    })
+
+    return [
+      { name: "Завершено", value: taskStatusCounts.COMPLETED, color: "#22c55e" },
+      { name: "В процессе", value: taskStatusCounts.IN_PROGRESS, color: "#3b82f6" },
+      { name: "На проверке", value: taskStatusCounts.REVIEW, color: "#a855f7" },
+      { name: "Новые", value: taskStatusCounts.NEW, color: "#eab308" },
+    ].filter((item) => item.value > 0) // Фильтруем, чтобы показывать только непустые значения
   }
 
   return (
@@ -629,7 +628,7 @@ export function AdvancedAnalytics() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={data?.projectStatusData}
+                          data={getTaskStatusData()}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -638,7 +637,7 @@ export function AdvancedAnalytics() {
                           dataKey="value"
                           label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                         >
-                          {data?.projectStatusData.map((entry, index) => (
+                          {getTaskStatusData().map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>

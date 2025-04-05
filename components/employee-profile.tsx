@@ -1,14 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import type React from "react"
+
+import { useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Mail, Phone, MapPin, Briefcase, Calendar, MessageSquare } from "lucide-react"
+import { Mail, Phone, MapPin, Briefcase, Calendar, MessageSquare, Camera, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
+import { useSession } from "next-auth/react"
 
 type EmployeeDetails = {
   id: string
@@ -59,9 +62,12 @@ type EmployeeDetails = {
 }
 
 export function EmployeeProfile({ id }: { id: string }) {
+  const { data: session } = useSession()
   const [employeeData, setEmployeeData] = useState<EmployeeDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -88,6 +94,74 @@ export function EmployeeProfile({ id }: { id: string }) {
       fetchEmployeeData()
     }
   }, [id])
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+
+    try {
+      // Создаем FormData для загрузки файла
+      const formData = new FormData()
+      formData.append("file", file)
+
+      // Отправляем файл на сервер
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error("Не удалось загрузить файл")
+      }
+
+      const uploadResult = await uploadResponse.json()
+
+      // Обновляем аватар пользователя
+      const updateResponse = await fetch(`/api/users/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          avatar: uploadResult.url,
+        }),
+      })
+
+      if (!updateResponse.ok) {
+        throw new Error("Не удалось обновить аватар")
+      }
+
+      const updatedUser = await updateResponse.json()
+
+      // Обновляем данные сотрудника
+      if (employeeData) {
+        setEmployeeData({
+          ...employeeData,
+          avatar: uploadResult.url,
+        })
+      }
+
+      toast({
+        title: "Успешно",
+        description: "Аватар успешно обновлен",
+      })
+    } catch (err) {
+      console.error("Ошибка при загрузке аватара:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить аватар",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click()
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -170,15 +244,38 @@ export function EmployeeProfile({ id }: { id: string }) {
     )
   }
 
+  const isOwnProfile = session?.user?.id === id
+
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="lg:col-span-1 space-y-6">
         <Card>
           <CardContent className="pt-6 text-center">
-            <Avatar className="h-32 w-32 mx-auto mb-4">
-              <AvatarImage src={employeeData.avatar || undefined} alt={employeeData.name} />
-              <AvatarFallback className="text-4xl">{employeeData.initials}</AvatarFallback>
-            </Avatar>
+            <div className="relative mx-auto mb-4 group">
+              <Avatar className="h-32 w-32 mx-auto">
+                <AvatarImage src={employeeData.avatar || undefined} alt={employeeData.name} />
+                <AvatarFallback className="text-4xl">{employeeData.initials}</AvatarFallback>
+              </Avatar>
+
+              {isOwnProfile && (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                  />
+                  <button
+                    onClick={triggerFileInput}
+                    disabled={isUploading}
+                    className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 shadow-md hover:bg-primary/90 transition-colors"
+                  >
+                    {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  </button>
+                </>
+              )}
+            </div>
             <h2 className="text-2xl font-bold">{employeeData.name}</h2>
             <p className="text-muted-foreground mb-2">{employeeData.position}</p>
             <Badge variant="outline" className={getStatusColor(employeeData.status)}>

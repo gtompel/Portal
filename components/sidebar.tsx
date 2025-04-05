@@ -18,6 +18,7 @@ import {
   BarChart,
   Settings,
   HelpCircle,
+  Briefcase,
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -44,6 +45,11 @@ export default function Sidebar() {
       href: "/employees",
       icon: Users,
       title: "Сотрудники",
+    },
+    {
+      href: "/projects",
+      icon: Briefcase,
+      title: "Проекты",
     },
     {
       href: "/calendar",
