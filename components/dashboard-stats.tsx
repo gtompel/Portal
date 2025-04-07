@@ -8,16 +8,16 @@ type DashboardStats = {
   tasks: {
     total: number
     active: number
-    totalDiff?: number // Сделал необязательным
-    activeDiff?: number // Сделал необязательным
+    totalDiff: number
+    activeDiff: number
   }
   documents: {
     total: number
-    diff?: number // Сделал необязательным
+    diff: number
   }
   announcements: {
     total: number
-    diff?: number // Сделал необязательным
+    diff: number
   }
 }
 
@@ -38,7 +38,7 @@ export function DashboardStats() {
           throw new Error("Не удалось загрузить статистику")
         }
 
-        const data = (await response.json()) as DashboardStats;
+        const data = await response.json()
         setStats(data)
       } catch (err) {
         console.error("Ошибка при загрузке статистики:", err)
@@ -67,7 +67,7 @@ export function DashboardStats() {
             <>
               <div className="text-2xl font-bold">{stats?.tasks.total || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.tasks.totalDiff != null && (stats?.tasks.totalDiff > 0 ? "+" : "")}
+                {stats?.tasks.totalDiff > 0 ? "+" : ""}
                 {stats?.tasks.totalDiff || 0} с прошлой недели
               </p>
             </>
@@ -88,7 +88,7 @@ export function DashboardStats() {
             <>
               <div className="text-2xl font-bold">{stats?.tasks.active || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.tasks.activeDiff != null && (stats?.tasks.activeDiff > 0 ? "+" : "")}
+                {stats?.tasks.activeDiff > 0 ? "+" : ""}
                 {stats?.tasks.activeDiff || 0} с прошлой недели
               </p>
             </>
@@ -109,7 +109,7 @@ export function DashboardStats() {
             <>
               <div className="text-2xl font-bold">{stats?.documents.total || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.documents.diff != null && (stats?.documents.diff > 0 ? "+" : "")}
+                {stats?.documents.diff > 0 ? "+" : ""}
                 {stats?.documents.diff || 0} с прошлой недели
               </p>
             </>
@@ -130,7 +130,7 @@ export function DashboardStats() {
             <>
               <div className="text-2xl font-bold">{stats?.announcements.total || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.announcements.diff != null && (stats?.announcements.diff > 0 ? "+" : "")}
+                {stats?.announcements.diff > 0 ? "+" : ""}
                 {stats?.announcements.diff || 0} с прошлой недели
               </p>
             </>
@@ -140,3 +140,4 @@ export function DashboardStats() {
     </div>
   )
 }
+

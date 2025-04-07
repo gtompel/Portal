@@ -45,6 +45,11 @@ model User {
   projects      ProjectMember[]
   accounts      Account[]
   sessions      Session[]
+  
+  // Новые связи
+  comments      Comment[]
+  announcementLikes AnnouncementLike[]
+  announcements Announcement[]
 }
 
 model Account {
@@ -55,7 +60,7 @@ model Account {
   providerAccountId  String
   refresh_token      String?  @db.Text
   access_token       String?  @db.Text
-  expires_at         Int?
+  expires_at       Int?
   token_type         String?
   scope              String?
   id_token           String?  @db.Text
@@ -254,11 +259,16 @@ model Announcement {
   title     String
   content   String
   category  AnnouncementCategory @default(NEWS)
+  author    User     @relation(fields: [authorId], references: [id])
   authorId  String
   likes     Int      @default(0)
   comments  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Связи
+  commentsList Comment[]
+  likesList    AnnouncementLike[]
 }
 
 enum AnnouncementCategory {
@@ -296,5 +306,32 @@ model ProjectMember {
   updatedAt DateTime @updatedAt
 
   @@unique([projectId, userId])
+}
+
+// Добавляем модели для комментариев и лайков
+
+model Comment {
+  id            String    @id @default(cuid())
+  content       String
+  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId      String
+  announcement  Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  announcementId String
+  parent        Comment?  @relation("CommentToReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId      String?
+  replies       Comment[] @relation("CommentToReplies")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AnnouncementLike {
+  id            String    @id @default(cuid())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  announcement  Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  announcementId String
+  createdAt     DateTime  @default(now())
+
+  @@unique([userId, announcementId])
 }
 

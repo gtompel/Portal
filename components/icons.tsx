@@ -1,5 +1,6 @@
 import {
   Loader2,
+  type LightbulbIcon as LucideProps,
   User,
   LogOut,
   UserPlus,
@@ -10,7 +11,6 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react"
-import * as React from 'react';
 
 export const Icons = {
   spinner: Loader2,
@@ -23,7 +23,7 @@ export const Icons = {
   alertCircle: AlertCircle,
   checkCircle: CheckCircle2,
   xCircle: XCircle,
-  logo: (props: React.SVGProps<SVGSVGElement>) => (
+  logo: (props: LucideProps) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
@@ -38,3 +38,4 @@ export const Icons = {
     </svg>
   ),
 }
+

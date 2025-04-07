@@ -5,12 +5,13 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Icons } from "@/components/icons"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import Link from "next/link"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Введите корректный email" }),
@@ -21,6 +22,10 @@ type LoginFormValues = z.infer<typeof loginSchema>
 
 export default function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const reset = searchParams?.get("reset")
+  const registered = searchParams?.get("registered")
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -61,6 +66,22 @@ export default function LoginForm() {
 
   return (
     <div className="grid gap-6">
+      {reset === "success" && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+          <AlertDescription className="text-green-800 dark:text-green-300">
+            Ваш пароль был успешно сброшен. Теперь вы можете войти с новым паролем.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {registered === "true" && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+          <AlertDescription className="text-green-800 dark:text-green-300">
+            Регистрация успешна. Теперь вы можете войти в систему.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -87,7 +108,12 @@ export default function LoginForm() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Пароль</FormLabel>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Пароль</FormLabel>
+                  <Link href="/auth/forgot-password" className="text-xs text-muted-foreground hover:text-primary">
+                    Забыли пароль?
+                  </Link>
+                </div>
                 <FormControl>
                   <Input placeholder="******" type="password" {...field} />
                 </FormControl>

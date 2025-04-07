@@ -9,7 +9,8 @@ const inter = Inter({ subsets: ["latin", "cyrillic"] })
 
 export const metadata: Metadata = {
   title: "Корпоративный портал",
-  description: "Внутренний портал компании с системой управления задачами и документами"
+  description: "Внутренний портал компании с системой управления задачами и документами",
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({

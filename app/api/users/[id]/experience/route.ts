@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     return NextResponse.json(experience, { status: 201 })
   } catch (error) {
-    console.error("Ошибка при добавлении опыта ��аботы:", error)
+    console.error("Ошибка при добавлении опыта работы:", error)
     return NextResponse.json({ error: "Ошибка при добавлении опыта работы" }, { status: 500 })
   }
 }

@@ -30,7 +30,7 @@ export async function GET() {
         }))
       : []
 
-    // Получаем статистику ��о статусам задач
+    // Получаем статистику по статусам задач
     const taskStatusCounts = await prisma.task.groupBy({
       by: ["status"],
       _count: {

@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 type Notification = {
   id: string
@@ -226,6 +227,7 @@ export default function Header() {
         </form>
       </div>
       <div className="flex flex-1 items-center justify-end gap-4 md:gap-2 lg:gap-4">
+        <ThemeToggle />
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="icon" className="rounded-full relative">

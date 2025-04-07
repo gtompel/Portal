@@ -11,7 +11,7 @@ interface ProtectedLayoutProps {
   children: ReactNode
 }
 
-const publicRoutes = ["/auth/login", "/auth/register", "/auth/error", "/auth/forgot-password"]
+const publicRoutes = ["/auth/login", "/auth/register", "/auth/error", "/auth/forgot-password", "/auth/reset-password"]
 
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const { data: session, status } = useSession()
@@ -19,7 +19,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
 
-  const isPublicRoute = publicRoutes.includes(pathname)
+  const isPublicRoute = publicRoutes.includes(pathname) || pathname?.startsWith("/auth/reset-password")
 
   useEffect(() => {
     // Если страница не публичная и нет сессии, перенаправляем на логин

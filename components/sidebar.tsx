@@ -19,6 +19,7 @@ import {
   Settings,
   HelpCircle,
   Briefcase,
+  BellRing,
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -65,6 +66,21 @@ export default function Sidebar() {
       href: "/analytics",
       icon: BarChart,
       title: "Аналитика",
+    },
+    {
+      href: "/analytics/tasks",
+      icon: BarChart,
+      title: "Аналитика задач",
+    },
+    {
+      href: "/analytics/projects",
+      icon: BarChart,
+      title: "Аналитика проектов",
+    },
+    {
+      href: "/announcements",
+      icon: BellRing,
+      title: "Объявления",
     },
     {
       href: "/settings",

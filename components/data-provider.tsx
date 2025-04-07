@@ -150,7 +150,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .join("&")
   }
 
-  // Функция для получения польз��вателей
+  // Функция для получения пользователей
   const fetchUsers = async (params?: Record<string, string>) => {
     try {
       setLoading((prev) => ({ ...prev, users: true }))

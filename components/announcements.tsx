@@ -180,21 +180,21 @@ export function Announcements() {
         method: "POST",
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error("Не удалось поставить лайк")
+        throw new Error(data.error || "Не удалось поставить лайк")
       }
 
       // Обновляем количество лайков в списке
       setAnnouncements((prev) =>
-        prev.map((announcement) =>
-          announcement.id === id ? { ...announcement, likes: announcement.likes + 1 } : announcement,
-        ),
+        prev.map((announcement) => (announcement.id === id ? { ...announcement, likes: data.likes } : announcement)),
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Ошибка при постановке лайка:", err)
       toast({
         title: "Ошибка",
-        description: "Не удалось поставить лайк",
+        description: err.message || "Не удалось поставить лайк",
         variant: "destructive",
       })
     }
