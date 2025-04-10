@@ -45,11 +45,12 @@ model User {
   projects      ProjectMember[]
   accounts      Account[]
   sessions      Session[]
-  
+
   // Новые связи
   comments      Comment[]
   announcementLikes AnnouncementLike[]
   announcements Announcement[]
+  notifications Notification[] // Связь с уведомлениями
 }
 
 model Account {
@@ -141,6 +142,8 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   comments    TaskComment[]
+
+  Notification Notification[]
 }
 
 enum TaskStatus {
@@ -202,6 +205,8 @@ model Event {
   participants EventParticipant[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  Notification Notification[]
 }
 
 enum EventType {
@@ -241,6 +246,8 @@ model Message {
   attachments MessageAttachment[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  Notification Notification[]
 }
 
 model MessageAttachment {
@@ -265,7 +272,7 @@ model Announcement {
   comments  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Связи
   commentsList Comment[]
   likesList    AnnouncementLike[]
@@ -335,3 +342,29 @@ model AnnouncementLike {
   @@unique([userId, announcementId])
 }
 
+// Модель для уведомлений
+model Notification {
+  id          String        @id @default(cuid())
+  type        NotificationType
+  userId      String        // Кому предназначено уведомление
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId     String?       // Ссылка на событие, если уведомление о событии
+  event       Event?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  taskId      String?       // Ссылка на задачу, если уведомление о задаче
+  task        Task?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  messageId   String?       // Ссылка на сообщение, если уведомление о сообщении
+  message     Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  read        Boolean       @default(false) // Прочитано ли уведомление
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId]) // Индекс для оптимизации запросов
+}
+
+enum NotificationType {
+  EVENT
+  TASK
+  MESSAGE
+  ANNOUNCEMENT
+  // Можно добавить другие типы
+}

@@ -137,52 +137,13 @@ export default function Header() {
         creatorName: message.sender.name,
       }))
 
-    // Если данных нет, добавляем демо-уведомления
-    const demoNotifications: Notification[] = []
-    if (eventNotifications.length === 0 && taskNotifications.length === 0 && messageNotifications.length === 0) {
-      demoNotifications.push(
-        {
-          id: "event-demo-1",
-          type: "EVENT",
-          title: "Встреча команды",
-          description: "Событие состоится 15.05.2025 в 14:00",
-          date: "2025-05-15T14:00:00",
-          createdAt: new Date().toISOString(),
-          read: false,
-          entityId: "demo-1",
-          creatorName: "Администратор",
-        },
-        {
-          id: "task-demo-1",
-          type: "TASK",
-          title: "Завершить отчет",
-          description: "Срок выполнения задачи: 10.05.2025",
-          date: "2025-05-10T18:00:00",
-          createdAt: new Date().toISOString(),
-          read: false,
-          entityId: "demo-2",
-          creatorName: "Руководитель проекта",
-        },
-        {
-          id: "message-demo-1",
-          type: "MESSAGE",
-          title: "Новое сообщение",
-          description: "Добрый день! Хотел уточнить детали по проекту...",
-          date: null,
-          createdAt: new Date().toISOString(),
-          read: false,
-          entityId: "demo-3",
-          creatorName: "Иван Петров",
-        },
-      )
-    }
+
 
     // Объединяем и сортируем уведомления по дате создания (сначала новые)
     const allNotifications = [
       ...eventNotifications,
       ...taskNotifications,
       ...messageNotifications,
-      ...demoNotifications,
     ]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10) // Ограничиваем количество уведомлений

@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     // Создание инициалов из имени
     const nameParts = body.name.split(" ")
-    const initials = nameParts.map((part) => part[0]).join("")
+    const initials = nameParts.map((part: any[]) => part[0]).join("")
 
     // Создание пользователя
     const user = await prisma.user.create({
