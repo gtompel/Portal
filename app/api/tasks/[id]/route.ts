@@ -46,6 +46,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PUT /api/tasks/[id] - Обновить задачу
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+
     const body = await request.json()
 
     // Проверяем, существует ли задача
