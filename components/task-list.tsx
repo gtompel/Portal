@@ -756,6 +756,7 @@ export function TaskList() {
               <TableHead className="w-[100px]">ID</TableHead>
               <TableHead>Название</TableHead>
               <TableHead>Исполнитель</TableHead>
+              <TableHead>Описание</TableHead>
               <TableHead>Статус</TableHead>
               <TableHead>Приоритет</TableHead>
               <TableHead>Срок</TableHead>
@@ -796,6 +797,7 @@ export function TaskList() {
                 <TableRow key={task.id}>
                   <TableCell className="font-medium">{task.id}</TableCell>
                   <TableCell>{task.title}</TableCell>
+                  <TableCell>{task.description}</TableCell>
                   <TableCell>{task.assignee?.name || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`${getStatusColor(task.status)} text-white`}>
