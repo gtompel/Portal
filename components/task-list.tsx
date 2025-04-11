@@ -755,8 +755,8 @@ export function TaskList() {
             <TableRow>
               <TableHead className="w-[100px]">ID</TableHead>
               <TableHead>Название</TableHead>
-              <TableHead>Исполнитель</TableHead>
               <TableHead>Описание</TableHead>
+              <TableHead>Исполнитель</TableHead>
               <TableHead>Статус</TableHead>
               <TableHead>Приоритет</TableHead>
               <TableHead>Срок</TableHead>
