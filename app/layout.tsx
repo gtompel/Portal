@@ -1,11 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/auth-provider"
 
-const inter = Inter({ subsets: ["latin", "cyrillic"] })
+const jetbrain = JetBrains_Mono({ subsets: ["latin", "cyrillic"] })
 
 export const metadata: Metadata = {
   title: "Корпоративный портал",
@@ -19,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={jetbrain.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>

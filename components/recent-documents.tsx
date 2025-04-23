@@ -60,7 +60,7 @@ export function RecentDocuments() {
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   // Форма загрузки документа
   const documentSchema = z.object({
     name: z.string().min(3, "Название должно содержать минимум 3 символа"),
@@ -199,8 +199,7 @@ export function RecentDocuments() {
           type: data.type,
           description: data.description,
           url: uploadResult.url,
-          size: `${(data.file[0].size / (1024 * 1024)).toFixed(1)} МБ`,
-          creatorId: session.user.id,
+          size: formatFileSize(data.file[0].size),          creatorId: session.user.id,
         }),
       })
 
@@ -328,7 +327,7 @@ export function RecentDocuments() {
           </Select>
         </div>
 
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-1">
               <FilePlus className="h-4 w-4" />
@@ -521,3 +520,13 @@ export function RecentDocuments() {
   )
 }
 
+// Add this utility function at the top of the file after the imports
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
+}

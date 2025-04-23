@@ -78,26 +78,33 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/documents/[id] - Удалить документ
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    // Проверяем, существует ли документ
+    // Get the document ID directly from params
+    const documentId = String(params.id)
+
     const existingDocument = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: documentId },
     })
 
     if (!existingDocument) {
-      return NextResponse.json({ error: "Документ не найден" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      )
     }
 
-    // Удаляем документ
     await prisma.document.delete({
-      where: { id: params.id },
+      where: { id: documentId },
     })
 
-    return NextResponse.json({ message: "Документ успешно удален" })
+    return NextResponse.json({ message: "Document deleted successfully" })
+    
   } catch (error) {
-    console.error("Ошибка при удалении документа:", error)
-    return NextResponse.json({ error: "Ошибка при удалении документа" }, { status: 500 })
-  }
-}
-
+    return NextResponse.json(
+      { error: "Failed to delete document" },
+      { status: 500 }
+    )  }}
