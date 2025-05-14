@@ -117,7 +117,7 @@ export function RecentDocuments() {
       setDocuments(formattedDocuments)
       setFilteredDocuments(formattedDocuments)
     } catch (err) {
-      console.error("Ошибка при загрузке документов:", err)
+      //console.error("Ошибка при загрузке документов:", err)
       setError("Не удалось загрузить документы")
     } finally {
       setIsLoading(false)

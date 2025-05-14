@@ -121,7 +121,7 @@ export function ProjectGantt({ projectId }: { projectId?: string }) {
 
       setProject(mockProject)
     } catch (err) {
-      console.error("Ошибка при загрузке данных проекта:", err)
+      //console.error("Ошибка при загрузке данных проекта:", err)
       setError("Не удалось загрузить данные проекта")
       toast({
         title: "Ошибка",

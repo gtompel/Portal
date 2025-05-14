@@ -97,13 +97,13 @@ export function MessageSystem() {
 
         // Если в URL указан id пользователя, выбираем его
         if (initialUserId) {
-          const userFromUrl = filteredUsers.find((user) => user.id === initialUserId)
+          const userFromUrl = filteredUsers.find((user: { id: string }) => user.id === initialUserId)
           if (userFromUrl) {
             setSelectedUser(userFromUrl)
           }
         }
       } catch (err) {
-        console.error("Ошибка загрузки пользователей:", err)
+        //console.error("Ошибка загрузки пользователей:", err)
         setError("Не удалось загрузить список пользователей")
       } finally {
         setIsLoadingUsers(false)
@@ -201,7 +201,7 @@ export function MessageSystem() {
       setMessages((prev) => [...prev, sentMessage])
       setNewMessage("")
     } catch (err) {
-      console.error("Ошибка отправки сообщения:", err)
+     // console.error("Ошибка отправки сообщения:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось отправить сообщение",

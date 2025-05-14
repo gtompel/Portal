@@ -41,7 +41,7 @@ export function DashboardStats() {
         const data = await response.json()
         setStats(data)
       } catch (err) {
-        console.error("Ошибка при загрузке статистики:", err)
+       // console.error("Ошибка при загрузке статистики:", err)
         setError("Не удалось загрузить статистику")
       } finally {
         setIsLoading(false)
@@ -65,10 +65,10 @@ export function DashboardStats() {
             </div>
           ) : (
             <>
-              <div className="text-2xl font-bold">{stats?.tasks.total || 0}</div>
+              <div className="text-2xl font-bold">{stats?.tasks.total ?? 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.tasks.totalDiff > 0 ? "+" : ""}
-                {stats?.tasks.totalDiff || 0} с прошлой недели
+                {(stats?.tasks.totalDiff ?? 0) > 0 ? "+" : ""}
+                {stats?.tasks.totalDiff ?? 0} с прошлой недели
               </p>
             </>
           )}
@@ -86,10 +86,10 @@ export function DashboardStats() {
             </div>
           ) : (
             <>
-              <div className="text-2xl font-bold">{stats?.tasks.active || 0}</div>
+              <div className="text-2xl font-bold">{stats?.tasks.active ?? 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.tasks.activeDiff > 0 ? "+" : ""}
-                {stats?.tasks.activeDiff || 0} с прошлой недели
+                {(stats?.tasks.activeDiff ?? 0) > 0 ? "+" : ""}
+                {stats?.tasks.activeDiff ?? 0} с прошлой недели
               </p>
             </>
           )}
@@ -107,10 +107,10 @@ export function DashboardStats() {
             </div>
           ) : (
             <>
-              <div className="text-2xl font-bold">{stats?.documents.total || 0}</div>
+              <div className="text-2xl font-bold">{stats?.documents.total ?? 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.documents.diff > 0 ? "+" : ""}
-                {stats?.documents.diff || 0} с прошлой недели
+                {(stats?.documents.diff ?? 0) > 0 ? "+" : ""}
+                {stats?.documents.diff ?? 0} с прошлой недели
               </p>
             </>
           )}
@@ -128,10 +128,10 @@ export function DashboardStats() {
             </div>
           ) : (
             <>
-              <div className="text-2xl font-bold">{stats?.announcements.total || 0}</div>
+              <div className="text-2xl font-bold">{stats?.announcements.total ?? 0}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.announcements.diff > 0 ? "+" : ""}
-                {stats?.announcements.diff || 0} с прошлой недели
+                {(stats?.announcements.diff ?? 0) > 0 ? "+" : ""}
+                {stats?.announcements.diff ?? 0} с прошлой недели
               </p>
             </>
           )}
@@ -140,4 +140,3 @@ export function DashboardStats() {
     </div>
   )
 }
-

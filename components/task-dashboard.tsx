@@ -101,7 +101,7 @@ export function TaskDashboard() {
       setTasksOverTime(data.tasksOverTime)
       setTasksByAssignee(data.tasksByAssignee)
     } catch (err) {
-      console.error("Ошибка при загрузке данных:", err)
+      //console.error("Ошибка при загрузке данных:", err)
       setError("Не удалось загрузить данные")
       toast({
         title: "Ошибка",

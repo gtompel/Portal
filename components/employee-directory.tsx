@@ -125,7 +125,7 @@ export function EmployeeDirectory() {
       setEmployees(formattedEmployees)
       setFilteredEmployees(formattedEmployees)
     } catch (err) {
-      console.error("Ошибка при загрузке сотрудников:", err)
+     // console.error("Ошибка при загрузке сотрудников:", err)
       setError("Не удалось загрузить сотрудников")
     } finally {
       setIsLoading(false)
@@ -202,7 +202,7 @@ export function EmployeeDirectory() {
 
       form.reset()
     } catch (err) {
-      console.error("Ошибка при создании сотрудника:", err)
+     // console.error("Ошибка при создании сотрудника:", err)
       toast({
         title: "Ошибка",
         description: err instanceof Error ? err.message : "Не удалось создать сотрудника",

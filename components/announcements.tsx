@@ -101,7 +101,7 @@ export function Announcements() {
 
       setAnnouncements(formattedAnnouncements)
     } catch (err) {
-      console.error("Ошибка при загрузке объявлений:", err)
+     // console.error("Ошибка при загрузке объявлений:", err)
       setError("Не удалось загрузить объявления")
     } finally {
       setIsLoading(false)
@@ -163,7 +163,7 @@ export function Announcements() {
 
       form.reset()
     } catch (err) {
-      console.error("Ошибка при создании объявления:", err)
+    //  console.error("Ошибка при создании объявления:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось создать объявление",
@@ -191,7 +191,7 @@ export function Announcements() {
         prev.map((announcement) => (announcement.id === id ? { ...announcement, likes: data.likes } : announcement)),
       )
     } catch (err: any) {
-      console.error("Ошибка при постановке лайка:", err)
+    //  console.error("Ошибка при постановке лайка:", err)
       toast({
         title: "Ошибка",
         description: err.message || "Не удалось поставить лайк",
@@ -245,7 +245,7 @@ export function Announcements() {
       }
       return date.toLocaleDateString("ru-RU")
     } catch (error) {
-      console.error("Ошибка форматирования даты:", error)
+     // console.error("Ошибка форматирования даты:", error)
       return "Недавно"
     }
   }

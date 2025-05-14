@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     return NextResponse.json(announcement)
   } catch (error) {
-    console.error("Ошибка при получении объявления:", error)
+   // console.error("Ошибка при получении объявления:", error)
     return NextResponse.json({ error: "Ошибка при получении объявления" }, { status: 500 })
   }
 }
@@ -65,7 +65,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     return NextResponse.json(updatedAnnouncement)
   } catch (error) {
-    console.error("Ошибка при обновлении объявления:", error)
+   // console.error("Ошибка при обновлении объявления:", error)
     return NextResponse.json({ error: "Ошибка при обновлении объявления" }, { status: 500 })
   }
 }
@@ -96,7 +96,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Ошибка при удалении объявления:", error)
+  //  console.error("Ошибка при удалении объявления:", error)
     return NextResponse.json({ error: "Ошибка при удалении объявления" }, { status: 500 })
   }
 }

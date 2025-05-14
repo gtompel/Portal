@@ -41,6 +41,7 @@ type Task = {
   priority: "LOW" | "MEDIUM" | "HIGH"
   dueDate: string | null
   createdAt: string
+  taskNumber?: number
 }
 
 type User = {
@@ -135,7 +136,7 @@ export function TaskList() {
       const data = await response.json()
 
       // Преобразуем данные в нужный формат
-      const formattedTasks = data.map((item: any) => ({
+      const formattedTasks = data.map((item: any, index: number) => ({
         id: item.id,
         title: item.title,
         description: item.description,
@@ -151,12 +152,12 @@ export function TaskList() {
         priority: item.priority,
         dueDate: item.dueDate,
         createdAt: item.createdAt,
+        taskNumber: item.taskNumber,
       }))
-
       setTasks(formattedTasks)
       setFilteredTasks(formattedTasks)
     } catch (err) {
-      console.error("Ошибка при загрузке задач:", err)
+     // console.error("Ошибка при загрузке задач:", err)
       setError("Не удалось загрузить задачи")
     } finally {
       setIsLoading(false)
@@ -183,7 +184,7 @@ export function TaskList() {
 
       setUsers(formattedUsers)
     } catch (err) {
-      console.error("Ошибка при загрузке пользователей:", err)
+      // console.error("Ошибка при загрузке пользователей:", err)
     } finally {
       setIsLoadingUsers(false)
     }
@@ -325,6 +326,7 @@ export function TaskList() {
         priority: newTask.priority,
         dueDate: newTask.dueDate,
         createdAt: newTask.createdAt,
+        taskNumber: newTask.taskNumber,
       }
 
       setTasks((prev) => [formattedTask, ...prev])
@@ -346,7 +348,6 @@ export function TaskList() {
       setIsAddingTask(false)
     }
   }
-
   const updateTask = async (data: z.infer<typeof taskSchema>) => {
     if (!currentTask) return
 
@@ -404,7 +405,7 @@ export function TaskList() {
 
       setCurrentTask(null)
     } catch (err) {
-      console.error("Ошибка при обновлении задачи:", err)
+      //console.error("Ошибка при обновлении задачи:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось обновить задачу",
@@ -753,7 +754,7 @@ export function TaskList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">ID</TableHead>
+              <TableHead className="w-[100px]">#</TableHead>
               <TableHead>Название</TableHead>
               <TableHead>Описание</TableHead>
               <TableHead>Исполнитель</TableHead>
@@ -795,7 +796,7 @@ export function TaskList() {
             ) : filteredTasks.length > 0 ? (
               filteredTasks.map((task) => (
                 <TableRow key={task.id}>
-                  <TableCell className="font-medium">{task.id}</TableCell>
+                  <TableCell className="font-medium">{task.taskNumber}</TableCell>
                   <TableCell>{task.title}</TableCell>
                   <TableCell>{task.description}</TableCell>
                   <TableCell>{task.assignee?.name || "-"}</TableCell>

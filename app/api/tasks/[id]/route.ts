@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json(task)
   } catch (error) {
-    console.error("Ошибка при получении задачи:", error)
+  //  console.error("Ошибка при получении задачи:", error)
     return NextResponse.json({ error: "Ошибка при получении задачи" }, { status: 500 })
   }
 }
@@ -93,7 +93,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json(updatedTask)
   } catch (error) {
-    console.error("Ошибка при обновлении задачи:", error)
+  //  console.error("Ошибка при обновлении задачи:", error)
     return NextResponse.json({ error: "Ошибка при обновлении задачи" }, { status: 500 })
   }
 }
@@ -101,9 +101,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 // DELETE /api/tasks/[id] - Удалить задачу
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const { id } = await params;
+
     // Проверяем, существует ли задача
     const existingTask = await prisma.task.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     if (!existingTask) {
@@ -112,13 +114,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // Удаляем задачу
     await prisma.task.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({ message: "Задача успешно удалена" })
   } catch (error) {
-    console.error("Ошибка при удалении задачи:", error)
+  //  console.error("Ошибка при удалении задачи:", error)
     return NextResponse.json({ error: "Ошибка при удалении задачи" }, { status: 500 })
   }
 }
-

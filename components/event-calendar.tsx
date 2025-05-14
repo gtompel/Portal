@@ -147,7 +147,7 @@ export function EventCalendar() {
 
       setEvents(formattedEvents)
     } catch (err) {
-      console.error("Ошибка при загрузке событий:", err)
+      //console.error("Ошибка при загрузке событий:", err)
       setError("Не удалось загрузить события")
     } finally {
       setIsLoading(false)
@@ -201,7 +201,7 @@ export function EventCalendar() {
 
       setUsers(formattedUsers)
     } catch (err) {
-      console.error("Ошибка при загрузке пользователей:", err)
+     // console.error("Ошибка при загрузке пользователей:", err)
     }
   }
 
@@ -269,7 +269,7 @@ export function EventCalendar() {
 
       form.reset()
     } catch (err) {
-      console.error("Ошибка при создании события:", err)
+      //console.error("Ошибка при создании события:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось создать событие",
@@ -348,7 +348,7 @@ export function EventCalendar() {
       case "VACATION":
         return "отпуск"
       default:
-        return type.toLowerCase()
+        return String(type).toLowerCase()
     }
   }
 

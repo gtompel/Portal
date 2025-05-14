@@ -177,7 +177,7 @@ export function EmployeeProfile({ id }: { id: string }) {
         // Устанавливаем значение биографии в форму
         bioForm.setValue("bio", data.bio || "")
       } catch (err) {
-        console.error("Ошибка при загрузке данных сотрудника:", err)
+       // console.error("Ошибка при загрузке данных сотрудника:", err)
         setError("Не удалось загрузить данные сотрудника")
       } finally {
         setIsLoading(false)
@@ -304,7 +304,7 @@ export function EmployeeProfile({ id }: { id: string }) {
         description: "Информация о сотруднике обновлена",
       })
     } catch (err) {
-      console.error("Ошибка при обновлении информации:", err)
+     // console.error("Ошибка при обновлении информации:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось обновить информацию",
@@ -344,7 +344,7 @@ export function EmployeeProfile({ id }: { id: string }) {
         description: "Информация об образовании добавлена",
       })
     } catch (err) {
-      console.error("Ошибка при добавлении образования:", err)
+     // console.error("Ошибка при добавлении образования:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось добавить образование",
@@ -386,7 +386,7 @@ export function EmployeeProfile({ id }: { id: string }) {
         description: "Информация об образовании обновлена",
       })
     } catch (err) {
-      console.error("Ошибка при обновлении образования:", err)
+     // console.error("Ошибка при обновлении образования:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось обновить образование",
@@ -458,7 +458,7 @@ export function EmployeeProfile({ id }: { id: string }) {
         description: "Информация об опыте работы добавлена",
       })
     } catch (err) {
-      console.error("Ошибка при добавлении опыта работы:", err)
+     // console.error("Ошибка при добавлении опыта работы:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось добавить опыт работы",
@@ -500,7 +500,7 @@ export function EmployeeProfile({ id }: { id: string }) {
         description: "Информация об опыте работы обновлена",
       })
     } catch (err) {
-      console.error("Ошибка при обновлении опыта работы:", err)
+     // console.error("Ошибка при обновлении опыта работы:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось обновить опыт работы",
@@ -532,7 +532,7 @@ export function EmployeeProfile({ id }: { id: string }) {
         description: "Информация об опыте работы удалена",
       })
     } catch (err) {
-      console.error("Ошибка при удалении опыта работы:", err)
+      //console.error("Ошибка при удалении опыта работы:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось удалить опыт работы",

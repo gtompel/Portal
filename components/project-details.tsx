@@ -146,7 +146,7 @@ export function ProjectDetails({ id }: { id: string }) {
       const data = await response.json()
       setProject(data)
     } catch (err) {
-      console.error("Ошибка при загрузке данных проекта:", err)
+      //console.error("Ошибка при загрузке данных проекта:", err)
       setError("Не удалось загрузить данные проекта")
     } finally {
       setIsLoading(false)
@@ -164,7 +164,7 @@ export function ProjectDetails({ id }: { id: string }) {
       const data = await response.json()
       setUsers(data)
     } catch (err) {
-      console.error("Ошибка при загрузке пользователей:", err)
+      //console.error("Ошибка при загрузке пользователей:", err)
     }
   }
 
@@ -217,7 +217,7 @@ export function ProjectDetails({ id }: { id: string }) {
         description: "Проект успешно обновлен",
       })
     } catch (err) {
-      console.error("Ошибка при обновлении проекта:", err)
+      //console.error("Ошибка при обновлении проекта:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось обновить проект",
@@ -258,7 +258,7 @@ export function ProjectDetails({ id }: { id: string }) {
         description: "Участник успешно добавлен",
       })
     } catch (err) {
-      console.error("Ошибка при добавлении участника:", err)
+      //console.error("Ошибка при добавлении участника:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось добавить участника",
@@ -290,7 +290,7 @@ export function ProjectDetails({ id }: { id: string }) {
         description: "Участник успешно удален",
       })
     } catch (err) {
-      console.error("Ошибка при удалении участника:", err)
+      //console.error("Ошибка при удалении участника:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось удалить участника",
@@ -316,7 +316,7 @@ export function ProjectDetails({ id }: { id: string }) {
 
       router.push("/projects")
     } catch (err) {
-      console.error("Ошибка при удалении проекта:", err)
+      //console.error("Ошибка при удалении проекта:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось удалить проект",

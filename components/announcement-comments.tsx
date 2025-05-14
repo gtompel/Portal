@@ -94,7 +94,7 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
 
       setComments(formattedComments)
     } catch (err) {
-      console.error("Ошибка при загрузке комментариев:", err)
+    //  console.error("Ошибка при загрузке комментариев:", err)
       setError("Не удалось загрузить комментарии")
       toast({
         title: "Ошибка",
@@ -168,7 +168,7 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
         description: "Комментарий добавлен",
       })
     } catch (err: any) {
-      console.error("Ошибка при добавлении комментария:", err)
+    //  console.error("Ошибка при добавлении комментария:", err)
       toast({
         title: "Ошибка",
         description: err.message || "Не удалось добавить комментарий",
@@ -185,23 +185,23 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
     setIsSubmitting(true)
 
     try {
-      // В реальном приложении здесь был бы запрос к API
-      // const response = await fetch(`/api/announcements/${announcementId}/comments/${editingComment.id}`, {
-      //   method: "PUT",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     content: newComment
-      //   }),
-      // })
-      // if (!response.ok) {
-      //   throw new Error("Не удалось обновить комментарий")
-      // }
-      // const data = await response.json()
+     // В реальном приложении здесь был бы запрос к API
+      const response = await fetch(`/api/announcements/${announcementId}/comments/${editingComment.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: newComment
+        }),
+      })
+      if (!response.ok) {
+        throw new Error("Не удалось обновить комментарий")
+      }
+      const data = await response.json()
 
       // Имитируем успешный ответ
-      await new Promise((resolve) => setTimeout(resolve, 500))
+     // await new Promise((resolve) => setTimeout(resolve, 500))
 
       if (editingComment.isReply) {
         // Обновляем ответ
@@ -246,15 +246,15 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
   const deleteComment = async (commentId: string, isReply = false, parentId?: string) => {
     try {
       // В реальном приложении здесь был бы запрос к API
-      // const response = await fetch(`/api/announcements/${announcementId}/comments/${commentId}`, {
-      //   method: "DELETE"
-      // })
-      // if (!response.ok) {
-      //   throw new Error("Не удалось удалить комментарий")
-      // }
+      const response = await fetch(`/api/announcements/${announcementId}/comments/${commentId}`, {
+        method: "DELETE"
+      })
+      if (!response.ok) {
+        throw new Error("Не удалось удалить комментарий")
+      }
 
-      // Имитируем успешный ответ
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // // Имитируем успешный ответ
+      // await new Promise((resolve) => setTimeout(resolve, 500))
 
       if (isReply && parentId) {
         // Удаляем ответ
@@ -279,7 +279,7 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
         description: "Комментарий удален",
       })
     } catch (err) {
-      console.error("Ошибка при удалении комментария:", err)
+      //console.error("Ошибка при удалении комментария:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось удалить комментарий",
@@ -291,15 +291,15 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
   const likeComment = async (commentId: string, isReply = false, parentId?: string) => {
     try {
       // В реальном приложении здесь был бы запрос к API
-      // const response = await fetch(`/api/announcements/${announcementId}/comments/${commentId}/like`, {
-      //   method: "POST"
-      // })
-      // if (!response.ok) {
-      //   throw new Error("Не удалось поставить лайк")
-      // }
+      const response = await fetch(`/api/announcements/${announcementId}/comments/${commentId}/like`, {
+        method: "POST"
+      })
+      if (!response.ok) {
+        throw new Error("Не удалось поставить лайк")
+      }
 
-      // Имитируем успешный ответ
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      //  Имитируем успешный ответ
+      // await new Promise((resolve) => setTimeout(resolve, 300))
 
       if (isReply && parentId) {
         // Обновляем лайк для ответа
@@ -323,7 +323,7 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
         )
       }
     } catch (err) {
-      console.error("Ошибка при добавлении лайка:", err)
+      //console.error("Ошибка при добавлении лайка:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось поставить лайк",
@@ -384,7 +384,7 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
         return date.toLocaleDateString("ru-RU")
       }
     } catch (error) {
-      console.error("Ошибка форматирования даты:", error)
+     // console.error("Ошибка форматирования даты:", error)
       return "Недавно"
     }
   }

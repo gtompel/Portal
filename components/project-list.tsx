@@ -169,7 +169,7 @@ export function ProjectList() {
       setProjects(formattedProjects)
       setFilteredProjects(formattedProjects)
     } catch (err) {
-      console.error("Ошибка при загрузке проектов:", err)
+      //console.error("Ошибка при загрузке проектов:", err)
       setError("Не удалось загрузить проекты")
     } finally {
       setIsLoading(false)
@@ -197,7 +197,7 @@ export function ProjectList() {
 
       setUsers(formattedUsers)
     } catch (err) {
-      console.error("Ошибка при загрузке пользователей:", err)
+      //console.error("Ошибка при загрузке пользователей:", err)
     } finally {
       setIsLoadingUsers(false)
     }
@@ -297,7 +297,7 @@ export function ProjectList() {
 
       form.reset()
     } catch (err) {
-      console.error("Ошибка при создании проекта:", err)
+      //console.error("Ошибка при создании проекта:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось создать проект",
@@ -338,7 +338,7 @@ export function ProjectList() {
 
       setCurrentProject(null)
     } catch (err) {
-      console.error("Ошибка при обновлении проекта:", err)
+      //console.error("Ошибка при обновлении проекта:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось обновить проект",
@@ -367,7 +367,7 @@ export function ProjectList() {
         description: "Проект успешно удален",
       })
     } catch (err) {
-      console.error("Ошибка при удалении проекта:", err)
+      //console.error("Ошибка при удалении проекта:", err)
       toast({
         title: "Ошибка",
         description: "Не удалось удалить проект",

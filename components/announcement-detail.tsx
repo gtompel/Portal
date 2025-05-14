@@ -69,7 +69,7 @@ export function AnnouncementDetail({ id }: { id: string }) {
 
       setAnnouncement(formattedAnnouncement)
     } catch (err) {
-      console.error("Ошибка при загрузке объявления:", err)
+     // console.error("Ошибка при загрузке объявления:", err)
       setError("Не удалось загрузить объявление")
       toast({
         title: "Ошибка",
@@ -96,7 +96,7 @@ export function AnnouncementDetail({ id }: { id: string }) {
       // Обновляем количество лайков
       setAnnouncement((prev) => (prev ? { ...prev, likes: data.likes } : null))
     } catch (err: any) {
-      console.error("Ошибка при постановке лайка:", err)
+    //  console.error("Ошибка при постановке лайка:", err)
       toast({
         title: "Ошибка",
         description: err.message || "Не удалось поставить лайк",
@@ -150,7 +150,7 @@ export function AnnouncementDetail({ id }: { id: string }) {
       }
       return date.toLocaleDateString("ru-RU")
     } catch (error) {
-      console.error("Ошибка форматирования даты:", error)
+     // console.error("Ошибка форматирования даты:", error)
       return "Недавно"
     }
   }
