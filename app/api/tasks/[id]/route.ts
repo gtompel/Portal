@@ -2,10 +2,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 
 // GET /api/tasks/[id] - Получить задачу по ID
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
+    const { id } = await context.params;
     const task = await prisma.task.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         assignee: {
           select: {
@@ -44,14 +45,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/tasks/[id] - Обновить задачу
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: { id: string } }) {
   try {
-
+    const { id } = await context.params;
     const body = await request.json()
 
     // Проверяем, существует ли задача
     const existingTask = await prisma.task.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existingTask) {
@@ -67,11 +68,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     if (body.status !== undefined) updateData.status = body.status
     if (body.priority !== undefined) updateData.priority = body.priority
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null
-    if (body.assigneeId !== undefined) updateData.assigneeId = body.assigneeId
+    if (body.assigneeId !== undefined) {
+      updateData.assigneeId = body.assigneeId === "" || body.assigneeId === "not_assigned" ? null : body.assigneeId;
+    }
 
     // Обновляем задачу
     const updatedTask = await prisma.task.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         assignee: {
@@ -93,19 +96,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json(updatedTask)
   } catch (error) {
-  //  console.error("Ошибка при обновлении задачи:", error)
-    return NextResponse.json({ error: "Ошибка при обновлении задачи" }, { status: 500 })
+    console.error("Ошибка при обновлении задачи:", error);
+    return NextResponse.json({ error: "Ошибка при обновлении задачи", details: String(error) }, { status: 500 })
   }
 }
 
 // DELETE /api/tasks/[id] - Удалить задачу
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const { id } = await params;
-
+    const { id } = await context.params;
     // Проверяем, существует ли задача
     const existingTask = await prisma.task.findUnique({
-      where: { id: id },
+      where: { id },
     })
 
     if (!existingTask) {
@@ -114,7 +116,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // Удаляем задачу
     await prisma.task.delete({
-      where: { id: id },
+      where: { id },
     })
 
     return NextResponse.json({ message: "Задача успешно удалена" })
