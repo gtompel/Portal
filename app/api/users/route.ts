@@ -1,9 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 import { hash } from "bcrypt"
 
 // GET /api/users - Получить всех пользователей
 export async function GET(request: NextRequest) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const { searchParams } = new URL(request.url)
     const department = searchParams.get("department")
@@ -57,6 +66,14 @@ export async function GET(request: NextRequest) {
 
 // POST /api/users - Создать нового пользователя
 export async function POST(request: NextRequest) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const body = await request.json()
 

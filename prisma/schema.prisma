@@ -285,6 +285,7 @@ model Announcement {
   // Связи
   commentsList Comment[]
   likesList    AnnouncementLike[]
+  notifications Notification[]
 }
 
 enum AnnouncementCategory {
@@ -363,6 +364,8 @@ model Notification {
   task        Task?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
   messageId   String?       // Ссылка на сообщение, если уведомление о сообщении
   message     Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  announcementId String?    // Ссылка на объявление, если уведомление о объявлении
+  announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   read        Boolean       @default(false) // Прочитано ли уведомление
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

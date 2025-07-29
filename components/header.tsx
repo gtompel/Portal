@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Search, Calendar, CheckSquare, MessageSquare } from "lucide-react"
+import { Bell, Calendar, CheckSquare, MessageSquare } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +20,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 
 type Notification = {
   id: string
-  type: "EVENT" | "TASK" | "MESSAGE" | "ASSIGNED"
+  type: "EVENT" | "TASK" | "MESSAGE" | "ASSIGNED" | "ANNOUNCEMENT"
   title: string
   description: string
   date: string | null
@@ -35,155 +34,79 @@ export default function Header() {
   const { data: session } = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
-  const [tasks, setTasks] = useState<any[]>([])
-  const [events, setEvents] = useState<any[]>([])
-  const [messages, setMessages] = useState<any[]>([])
 
-  // Fetch data on component mount
   useEffect(() => {
     if (session?.user?.id) {
       fetchNotificationData()
+      // Миграция уведомлений при входе
+      migrateNotifications()
     }
   }, [session])
 
-  // Загрузка данных для уведомлений
-  const fetchNotificationData = async () => {
+  // Миграция уведомлений для старых задач
+  const migrateNotifications = async () => {
     try {
       if (!session?.user?.id) return
-
-      // Загружаем задачи
-      const tasksResponse = await fetch("/api/tasks")
-      if (tasksResponse.ok) {
-        const tasksData = await tasksResponse.json()
-        setTasks(tasksData)
-      }
-
-      // Загружаем события
-      const eventsResponse = await fetch("/api/events")
-      if (eventsResponse.ok) {
-        const eventsData = await eventsResponse.json()
-        setEvents(eventsData)
-      }
-
-      // Загружаем сообщения
-      const messagesResponse = await fetch(`/api/messages?receiverId=${session.user.id}`)
-      if (messagesResponse.ok) {
-        const messagesData = await messagesResponse.json()
-        setMessages(messagesData)
-      }
-
-      // Создаем уведомления на основе полученных данных
-      generateNotifications()
+      await fetch('/api/notifications/migrate', { method: 'POST' })
+      // После миграции обновляем список уведомлений
+      fetchNotificationData()
     } catch (error) {
-      console.error("Ошибка при загрузке данных для уведомлений:", error)
+      console.error("Ошибка при миграции уведомлений:", error)
     }
   }
 
-  // Генерация уведомлений на основе данных
-  const generateNotifications = () => {
-    const now = new Date()
-    const threeDaysFromNow = new Date(now)
-    threeDaysFromNow.setDate(now.getDate() + 3)
-
-    // Уведомления о предстоящих событиях
-    const eventNotifications = events
-      .filter((event) => {
-        const eventDate = new Date(event.date)
-        return eventDate >= now && eventDate <= threeDaysFromNow
-      })
-      .map((event) => ({
-        id: `event-${event.id}`,
-        type: "EVENT" as const,
-        title: event.title,
-        description: `Событие состоится ${new Date(event.date).toLocaleDateString("ru-RU")} в ${event.startTime}`,
-        date: event.date,
-        createdAt: event.createdAt || now.toISOString(),
-        read: false,
-        entityId: event.id,
-        creatorName: event.creator?.name || "Система",
-      }))
-
-    // Уведомления о задачах с приближающимся сроком
-    const taskNotifications = tasks
-      .filter((task) => {
-        if (!task.dueDate) return false
-        const dueDate = new Date(task.dueDate)
-        return dueDate >= now && dueDate <= threeDaysFromNow && task.status !== "COMPLETED"
-      })
-      .map((task) => ({
-        id: `task-${task.id}`,
-        type: "TASK" as const,
-        title: task.title,
-        description: `Срок выполнения задачи: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "Не указан"}`,
-        date: task.dueDate,
-        createdAt: task.createdAt || now.toISOString(),
-        read: false,
-        entityId: task.id,
-        creatorName: task.creator?.name || "Система",
-      }))
-
-    // Уведомления о непрочитанных сообщениях
-    const messageNotifications = messages
-      .filter((message) => !message.read)
-      .map((message) => ({
-        id: `message-${message.id}`,
-        type: "MESSAGE" as const,
-        title: `Сообщение от ${message.sender.name}`,
-        description: message.content.length > 50 ? `${message.content.substring(0, 50)}...` : message.content,
-        date: null,
-        createdAt: message.createdAt || now.toISOString(),
-        read: false,
-        entityId: message.id,
-        creatorName: message.sender.name,
-      }))
-
-    // Уведомления о назначении задачи текущему пользователю
-    const assignedNotifications = tasks
-      .filter((task) =>
-        task.assignee &&
-        task.assignee.id === session?.user?.id &&
-        // Только если задача была обновлена недавно (например, за последние 2 дня)
-        new Date(task.updatedAt || task.createdAt).getTime() > Date.now() - 2 * 24 * 60 * 60 * 1000
-      )
-      .map((task) => ({
-        id: `assigned-${task.id}`,
-        type: "ASSIGNED" as const,
-        title: `Вам назначена задача: ${task.title}`,
-        description: task.description || "",
-        date: task.updatedAt || task.createdAt,
-        createdAt: task.updatedAt || task.createdAt,
-        read: false,
-        entityId: task.id,
-        creatorName: task.creator?.name || "Система",
-      }))
-
-    // Объединяем и сортируем уведомления по дате создания (сначала новые)
-    const allNotifications = [
-      ...eventNotifications,
-      ...taskNotifications,
-      ...assignedNotifications,
-      ...messageNotifications,
-    ]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 10) // Ограничиваем количество уведомлений
-
-    setNotifications(allNotifications)
-    setUnreadCount(allNotifications.length)
+  // Загрузка реальных уведомлений из API
+  const fetchNotificationData = async () => {
+    try {
+      if (!session?.user?.id) return
+      const res = await fetch(`/api/notifications?userId=${session.user.id}`)
+      if (res.ok) {
+        const notifications = await res.json()
+        setNotifications(notifications)
+        setUnreadCount(notifications.filter((n: Notification) => !n.read).length)
+      }
+    } catch (error) {
+      console.error("Ошибка при загрузке уведомлений:", error)
+    }
   }
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
-    )
-    setUnreadCount((prev) => Math.max(0, prev - 1))
+  // Отметка как прочитанное с отправкой на сервер
+  const markAsRead = async (id: string) => {
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: [id] }),
+      });
+
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
+        )
+        setUnreadCount((prev) => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error("Ошибка при отметке уведомления как прочитанного:", error)
+    }
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
-    setUnreadCount(0)
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAll: true }),
+      });
+
+      if (response.ok) {
+        setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
+        setUnreadCount(0)
+      }
+    } catch (error) {
+      console.error("Ошибка при отметке всех уведомлений как прочитанных:", error)
+    }
   }
 
-  // Извлекаем инициалы из имени пользователя
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -240,6 +163,8 @@ export default function Header() {
                         <CheckSquare className="h-5 w-5 text-green-500" />
                       ) : notification.type === "ASSIGNED" ? (
                         <CheckSquare className="h-5 w-5 text-orange-500" />
+                      ) : notification.type === "ANNOUNCEMENT" ? (
+                        <Bell className="h-5 w-5 text-yellow-500" />
                       ) : (
                         <MessageSquare className="h-5 w-5 text-purple-500" />
                       )}

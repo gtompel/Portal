@@ -1,10 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 import prisma from "@/lib/prisma";
 import { emitTaskEvent } from "@/lib/events";
 
 // GET /api/tasks - Получить все задачи
 export async function GET(request: NextRequest) {
   try {
+    // Проверяем аутентификацию
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const search = searchParams.get("search");
@@ -147,6 +157,18 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Создаём уведомление для исполнителя, если он назначен
+    if (task.assigneeId) {
+      await prisma.notification.create({
+        data: {
+          type: "TASK",
+          userId: task.assigneeId,
+          taskId: task.id,
+          read: false,
+        },
+      });
+    }
 
     // Отправляем событие о создании задачи
     emitTaskEvent('task_created', { 

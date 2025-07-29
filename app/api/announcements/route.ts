@@ -1,8 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/announcements - Получить все объявления
 export async function GET(request: NextRequest) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
@@ -43,6 +52,14 @@ export async function GET(request: NextRequest) {
 
 // POST /api/announcements - Создать новое объявление
 export async function POST(request: NextRequest) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const body = await request.json()
 
@@ -62,6 +79,29 @@ export async function POST(request: NextRequest) {
         comments: 0,
       },
     })
+
+    // Создаём уведомления для всех пользователей (кроме автора)
+    const allUsers = await prisma.user.findMany({
+      where: {
+        id: {
+          not: body.authorId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (allUsers.length > 0) {
+      await prisma.notification.createMany({
+        data: allUsers.map((user) => ({
+          type: "ANNOUNCEMENT",
+          userId: user.id,
+          announcementId: announcement.id,
+          read: false,
+        })),
+      });
+    }
 
     return NextResponse.json(announcement, { status: 201 })
   } catch (error) {

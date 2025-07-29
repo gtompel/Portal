@@ -615,13 +615,13 @@ export function TaskList() {
         throw new Error("Не удалось обновить статус")
       }
 
+      const updatedTask = await response.json();
+      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task));
+
       toast({
         title: "Статус обновлен",
         description: `Статус изменен на "${getStatusText(newStatus)}"`,
       })
-
-      // Обновляем список задач для синхронизации с сервером
-      fetchTasks()
     } catch (error) {
       console.error("Ошибка при обновлении статуса:", error)
       toast({
@@ -637,7 +637,6 @@ export function TaskList() {
   // Функция для быстрого обновления типа сети
   const quickUpdateNetworkType = async (taskId: string, newNetworkType: Task["networkType"]) => {
     try {
-      // Оптимистичное обновление UI
       setTasks((prev) =>
         prev.map((task) =>
           task.id === taskId ? { ...task, networkType: newNetworkType } : task
@@ -658,13 +657,13 @@ export function TaskList() {
         throw new Error("Не удалось обновить тип сети")
       }
 
+      const updatedTask = await response.json();
+      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task));
+
       toast({
         title: "Тип сети обновлен",
         description: `Тип сети изменен на "${getNetworkTypeText(newNetworkType)}"`,
       })
-
-      // Обновляем список задач для синхронизации с сервером
-      fetchTasks()
     } catch (error) {
       console.error("Ошибка при обновлении типа сети:", error)
       toast({
@@ -672,14 +671,12 @@ export function TaskList() {
         description: "Не удалось обновить тип сети",
         variant: "destructive",
       })
-      // Откатываем изменения в случае ошибки
       fetchTasks()
     }
   }
 
   const quickUpdatePriority = async (taskId: string, newPriority: Task["priority"]) => {
     try {
-      // Оптимистичное обновление UI
       setTasks((prev) =>
         prev.map((task) =>
           task.id === taskId ? { ...task, priority: newPriority } : task
@@ -700,13 +697,13 @@ export function TaskList() {
         throw new Error("Не удалось обновить приоритет")
       }
 
+      const updatedTask = await response.json();
+      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task));
+
       toast({
         title: "Приоритет обновлен",
         description: `Приоритет изменен на "${getPriorityText(newPriority)}"`,
       })
-
-      // Обновляем список задач для синхронизации с сервером
-      fetchTasks()
     } catch (error) {
       console.error("Ошибка при обновлении приоритета:", error)
       toast({
@@ -714,7 +711,6 @@ export function TaskList() {
         description: "Не удалось обновить приоритет",
         variant: "destructive",
       })
-      // Откатываем изменения в случае ошибки
       fetchTasks()
     }
   }
@@ -747,8 +743,9 @@ export function TaskList() {
         body: JSON.stringify({ assigneeId: newAssigneeId === "not_assigned" ? null : newAssigneeId }),
       })
       if (!response.ok) throw new Error("Не удалось обновить исполнителя")
+      const updatedTask = await response.json();
+      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task));
       toast({ title: "Исполнитель обновлен", description: `Исполнитель изменен` })
-      fetchTasks()
     } catch (error) {
       console.error("Ошибка при обновлении исполнителя:", error)
       toast({ title: "Ошибка", description: "Не удалось обновить исполнителя", variant: "destructive" })
@@ -758,7 +755,6 @@ export function TaskList() {
 
   const archiveTask = async (taskId: string) => {
     try {
-      // Оптимистичное обновление UI
       setTasks((prev) =>
         prev.map((task) =>
           task.id === taskId ? { ...task, isArchived: true } : task
@@ -779,13 +775,13 @@ export function TaskList() {
         throw new Error("Не удалось архивировать задачу")
       }
 
+      const updatedTask = await response.json();
+      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task));
+
       toast({
         title: "Задача архивирована",
         description: "Задача успешно перемещена в архив",
       })
-
-      // Обновляем список задач для синхронизации с сервером
-      fetchTasks()
     } catch (error) {
       console.error("Ошибка при архивировании задачи:", error)
       toast({
@@ -793,7 +789,6 @@ export function TaskList() {
         description: "Не удалось архивировать задачу",
         variant: "destructive",
       })
-      // Откатываем изменения в случае ошибки
       fetchTasks()
     }
   }

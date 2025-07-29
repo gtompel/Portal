@@ -1,9 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 import { emitTaskEvent } from "@/lib/events"
 
 // GET /api/tasks/[id] - Получить задачу по ID
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const { id } = await context.params;
     const task = await prisma.task.findUnique({
@@ -47,6 +56,14 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 // PUT /api/tasks/[id] - Обновить задачу
 export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const { id } = await context.params;
     const body = await request.json()
@@ -116,19 +133,39 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
       userId: updatedTask.creatorId 
     })
 
-    // После обновления задачи
-    if (
-      body.assigneeId !== undefined &&
-      body.assigneeId !== (existingTask as any).assigneeId &&
-      body.assigneeId !== "" &&
-      body.assigneeId !== "not_assigned" &&
-      body.assigneeId !== null
-    ) {
-      emitTaskEvent('task_assigned', {
-        taskId: updatedTask.id,
-        task: updatedTask,
-        userId: body.assigneeId,
-      })
+    // Обработка смены исполнителя
+    if (body.assigneeId !== undefined && body.assigneeId !== (existingTask as any).assigneeId) {
+      const oldAssigneeId = (existingTask as any).assigneeId;
+      const newAssigneeId = body.assigneeId === "" || body.assigneeId === "not_assigned" ? null : body.assigneeId;
+
+      // Удаляем уведомление для старого исполнителя, если он был
+      if (oldAssigneeId) {
+        await prisma.notification.deleteMany({
+          where: {
+            userId: oldAssigneeId,
+            taskId: updatedTask.id,
+            type: "TASK",
+          },
+        });
+      }
+
+      // Создаём уведомление для нового исполнителя, если он назначен
+      if (newAssigneeId) {
+        emitTaskEvent('task_assigned', {
+          taskId: updatedTask.id,
+          task: updatedTask,
+          userId: newAssigneeId,
+        });
+        
+        await prisma.notification.create({
+          data: {
+            type: "TASK",
+            userId: newAssigneeId,
+            taskId: updatedTask.id,
+            read: false,
+          },
+        });
+      }
     }
 
     return NextResponse.json(updatedTask)
@@ -140,6 +177,14 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
 
 // DELETE /api/tasks/[id] - Удалить задачу
 export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const { id } = await context.params;
     // Проверяем, существует ли задача
@@ -150,6 +195,14 @@ export async function DELETE(request: NextRequest, context: { params: { id: stri
     if (!existingTask) {
       return NextResponse.json({ error: "Задача не найдена" }, { status: 404 })
     }
+
+    // Удаляем связанные уведомления
+    await prisma.notification.deleteMany({
+      where: {
+        taskId: id,
+        type: "TASK",
+      },
+    });
 
     // Удаляем задачу
     await prisma.task.delete({

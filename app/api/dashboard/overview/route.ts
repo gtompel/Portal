@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Проверяем аутентификацию
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     // Получаем данные о задачах за последние 6 месяцев
     const now = new Date()
     const sixMonthsAgo = new Date(now)

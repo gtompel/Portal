@@ -1,8 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/documents/[id] - Получить документ по ID
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const document = await prisma.document.findUnique({
       where: { id: params.id },
@@ -32,6 +41,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // PUT /api/documents/[id] - Обновить документ
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const body = await request.json()
 
@@ -82,6 +99,14 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     // Get the document ID directly from params
     const documentId = String(params.id)

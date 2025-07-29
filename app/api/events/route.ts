@@ -1,10 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/events - Получить все события
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    // Проверяем аутентификацию
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+      const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
     const search = searchParams.get("search")
     const startDate = searchParams.get("startDate")
@@ -143,6 +153,18 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+
+    // Создаём уведомления для участников события
+    if (body.participants && body.participants.length > 0) {
+      await prisma.notification.createMany({
+        data: body.participants.map((participantId: string) => ({
+          type: "EVENT",
+          userId: participantId,
+          eventId: event.id,
+          read: false,
+        })),
+      });
+    }
 
     return NextResponse.json(event, { status: 201 })
   } catch (error) {

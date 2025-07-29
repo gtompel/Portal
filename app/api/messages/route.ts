@@ -1,10 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/messages - Получить сообщения
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    // Проверяем аутентификацию
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+      const { searchParams } = new URL(request.url)
     const senderId = searchParams.get("senderId")
     const receiverId = searchParams.get("receiverId")
 

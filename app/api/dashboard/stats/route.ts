@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Получаем текущую дату и дату неделю назад
+    // Проверяем аутентификацию
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+      // Получаем текущую дату и дату неделю назад
     const now = new Date()
     const oneWeekAgo = new Date(now)
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)

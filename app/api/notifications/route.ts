@@ -1,8 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/notifications - Получить уведомления для пользователя
 export async function GET(request: NextRequest) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
@@ -43,6 +52,16 @@ export async function GET(request: NextRequest) {
         message: {
           include: {
             sender: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        announcement: {
+          include: {
+            author: {
               select: {
                 id: true,
                 name: true,
@@ -92,6 +111,18 @@ export async function GET(request: NextRequest) {
             entityId: notification.messageId,
             creatorName: notification.message?.sender?.name,
           }
+        case "ANNOUNCEMENT":
+          return {
+            id: notification.id,
+            type: notification.type,
+            title: notification.announcement?.title || "Объявление",
+            description: notification.announcement?.content ? (notification.announcement.content.length > 50 ? `${notification.announcement.content.substring(0, 50)}...` : notification.announcement.content) : "Нет содержимого",
+            date: null,
+            createdAt: notification.createdAt,
+            read: notification.read,
+            entityId: notification.announcementId,
+            creatorName: notification.announcement?.author?.name,
+          }
         default:
           return null
       }
@@ -106,6 +137,14 @@ export async function GET(request: NextRequest) {
 
 // PUT /api/notifications - Отметить уведомления как прочитанные
 export async function PUT(request: NextRequest) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const body = await request.json()
     const { notificationIds } = body

@@ -1,9 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 import { hash } from "bcrypt"
 
 // GET /api/users/[id] - Получить пользователя по ID
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const { id } = await context.params;
     
@@ -45,6 +54,14 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 // PUT /api/users/[id] - Обновить пользователя
 export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     // Получаем id из params
     const { id } = await context.params
@@ -113,6 +130,14 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
 
 // DELETE /api/users/[id] - Удалить пользователя
 export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     // Получаем id из params
     const { id } = await context.params

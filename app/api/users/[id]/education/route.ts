@@ -1,8 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/users/[id]/education - Получить образование пользователя
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const id = params.id
 
@@ -20,6 +29,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // POST /api/users/[id]/education - Добавить образование
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const id = params.id
     const body = await request.json()

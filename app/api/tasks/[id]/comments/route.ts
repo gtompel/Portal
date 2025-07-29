@@ -1,8 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/tasks/[id]/comments - Получить комментарии к задаче
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const comments = await prisma.taskComment.findMany({
       where: { taskId: params.id },
@@ -20,6 +29,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // POST /api/tasks/[id]/comments - Добавить комментарий к задаче
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const body = await request.json()
 

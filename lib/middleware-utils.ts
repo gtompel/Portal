@@ -110,7 +110,9 @@ export function createErrorResponse(message: string, status: number = 400): Next
 // Создание редиректа с сохранением URL
 export function createRedirectResponse(url: string, request: NextRequest): NextResponse {
   const redirectUrl = new URL(url, request.url)
-  redirectUrl.searchParams.set('callbackUrl', request.url)
+  if (url.startsWith('/auth/login')) {
+    redirectUrl.searchParams.set('callbackUrl', request.url)
+  }
   return NextResponse.redirect(redirectUrl)
 }
 

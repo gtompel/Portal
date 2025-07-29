@@ -85,7 +85,7 @@ export async function middleware(request: NextRequest) {
     // Добавляем CORS для всех API роутов
     addCorsHeaders(response, request)
     
-    // Проверяем аутентификацию для защищенных API роутов
+    // Проверяем аутентификацию только для защищенных API роутов
     if (!isPublicApiRoute(pathname)) {
       const isAuthenticated = await checkAuth(request)
       

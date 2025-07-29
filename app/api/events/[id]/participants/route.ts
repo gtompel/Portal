@@ -1,8 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 
 // GET /api/events/[id]/participants - Получить участников события
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const participants = await prisma.eventParticipant.findMany({
       where: { eventId: params.id },
@@ -29,6 +38,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // POST /api/events/[id]/participants - Добавить участника к событию
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   try {
     const body = await request.json()
 
