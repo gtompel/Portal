@@ -8,8 +8,24 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const search = searchParams.get("search");
     const assigneeId = searchParams.get("assigneeId");
+    const showArchived = searchParams.get("showArchived") === "true";
 
     let whereClause = {};
+
+    // Фильтруем по статусу архивирования
+    if (showArchived) {
+      // Показываем только архивные задачи
+      whereClause = {
+        ...whereClause,
+        isArchived: true,
+      };
+    } else {
+      // Показываем только неархивные задачи
+      whereClause = {
+        ...whereClause,
+        isArchived: false,
+      };
+    }
 
     if (status && status !== "all") {
       whereClause = {
@@ -80,19 +96,34 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Проверяем, существует ли пользователь-создатель
+    const creator = await prisma.user.findUnique({
+      where: { id: body.creatorId },
+    });
+
+    if (!creator) {
+      return NextResponse.json(
+        { error: "Пользователь-создатель не найден" },
+        { status: 404 }
+      );
+    }
+
     //Получаем текущие задачи для назначения следующего номера
     const existingTasks = await prisma.task.findMany();
     const maxTaskNumber = existingTasks.reduce(
       (max, task: any) => Math.max(max, task.taskNumber || 0),
       0
     );
+    
     // Создание задачи
     const task = await prisma.task.create({
       data: {
         title: body.title,
         description: body.description || null,
         status: body.status || "NEW",
-        priority: body.priority || "MEDIUM",
+        priority: body.priority || "LOW",
+        networkType: body.networkType || "EMVS",
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         assigneeId: body.assigneeId || null,
         creatorId: body.creatorId,

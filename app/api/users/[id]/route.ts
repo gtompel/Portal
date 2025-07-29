@@ -3,11 +3,10 @@ import prisma from "@/lib/prisma"
 import { hash } from "bcrypt"
 
 // GET /api/users/[id] - Получить пользователя по ID
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Получаем id из params
-    const id = params.id
-
+    const { id } = await context.params;
+    
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
@@ -45,10 +44,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/users/[id] - Обновить пользователя
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: { id: string } }) {
   try {
     // Получаем id из params
-    const id = params.id
+    const { id } = await context.params
 
     const body = await request.json()
 
@@ -113,10 +112,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/users/[id] - Удалить пользователя
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
   try {
     // Получаем id из params
-    const id = params.id
+    const { id } = await context.params
 
     // Проверяем, существует ли пользователь
     const existingUser = await prisma.user.findUnique({

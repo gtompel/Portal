@@ -11,14 +11,14 @@ export default async function Home() {
   const count = await redis.incr("counter");
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-3xl font-bold">Добро пожаловать в корпоративный портал</h1>
+      <h1 className="text-3xl font-bold">Добро пожаловать в систему управления задачами</h1>
 
       <DashboardStats />
 
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Обзор</TabsTrigger>
-          <TabsTrigger value="tasks">Задачи</TabsTrigger>
+          <TabsTrigger value="tasks">Настройка АРМ</TabsTrigger>
           <TabsTrigger value="documents">Документы</TabsTrigger>
           <TabsTrigger value="announcements">Объявления</TabsTrigger>
         </TabsList>

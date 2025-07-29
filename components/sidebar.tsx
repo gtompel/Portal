@@ -10,16 +10,15 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
-  CheckSquare,
   FileText,
   Users,
   Calendar,
   MessageSquare,
   BarChart,
-  Settings,
   HelpCircle,
   Briefcase,
   BellRing,
+  Monitor,
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -34,8 +33,8 @@ export default function Sidebar() {
     },
     {
       href: "/tasks",
-      icon: CheckSquare,
-      title: "Задачи",
+      icon: Monitor,
+      title: "Настройка АРМ",
     },
     {
       href: "/documents",
@@ -82,11 +81,7 @@ export default function Sidebar() {
       icon: BellRing,
       title: "Объявления",
     },
-    {
-      href: "/settings",
-      icon: Settings,
-      title: "Настройки",
-    },
+
     {
       href: "/help",
       icon: HelpCircle,
@@ -98,7 +93,7 @@ export default function Sidebar() {
     <div className="relative border-r bg-background">
       <div className="flex h-16 items-center justify-between border-b px-4">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          {!isCollapsed && <span>Корпоративный портал</span>}
+          {!isCollapsed && <span>ГАиОАРМ</span>}
         </Link>
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsCollapsed(!isCollapsed)}>
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}

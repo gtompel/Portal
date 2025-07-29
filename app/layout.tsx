@@ -10,9 +10,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 const jetbrain = JetBrains_Mono({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: "Корпоративный портал",
-  description:
-    "Внутренний портал компании с системой управления задачами и документами",
+  title: "Управление задачами",
+  description: "Система управления задачами и документами",
 };
 
 export default function RootLayout({

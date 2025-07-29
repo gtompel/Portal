@@ -1,9 +1,9 @@
 // Исправляем импорт и делаем функцию асинхронной
 import { EmployeeProfile } from "@/components/employee-profile"
 
-export default async function EmployeeProfilePage({ params }: { params: { id: string } }) {
+export default async function EmployeeProfilePage(context: { params: { id: string } }) {
   // Получаем id из params
-  const id = params.id
+  const { id } = await context.params
 
   return (
     <div className="flex flex-col gap-4">

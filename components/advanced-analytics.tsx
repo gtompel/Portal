@@ -91,7 +91,7 @@ export function AdvancedAnalytics() {
         projectStatusData: [
           { name: "Завершено", value: 0, color: "#22c55e" },
           { name: "В процессе", value: 0, color: "#3b82f6" },
-          { name: "На проверке", value: 0, color: "#a855f7" },
+          { name: "Готов", value: 0, color: "#a855f7" },
           { name: "Новые", value: 0, color: "#eab308" },
         ],
         employeePerformanceData: analyticsData.employeePerformance.map((emp: any) => ({
@@ -146,7 +146,7 @@ export function AdvancedAnalytics() {
         const statusNames = {
           NEW: "Новые",
           IN_PROGRESS: "В процессе",
-          REVIEW: "На проверке",
+          REVIEW: "Готов",
           COMPLETED: "Завершено",
         }
 
@@ -217,7 +217,7 @@ export function AdvancedAnalytics() {
           const projectStatusData = [
             { name: "Завершено", value: taskStatusCounts.COMPLETED, color: "#22c55e" },
             { name: "В процессе", value: taskStatusCounts.IN_PROGRESS, color: "#3b82f6" },
-            { name: "На проверке", value: taskStatusCounts.REVIEW, color: "#a855f7" },
+            { name: "Готов", value: taskStatusCounts.REVIEW, color: "#a855f7" },
             { name: "Новые", value: taskStatusCounts.NEW, color: "#eab308" },
           ]
 
@@ -283,7 +283,7 @@ export function AdvancedAnalytics() {
     return [
       { name: "Завершено", value: taskStatusCounts.COMPLETED, color: "#22c55e" },
       { name: "В процессе", value: taskStatusCounts.IN_PROGRESS, color: "#3b82f6" },
-      { name: "На проверке", value: taskStatusCounts.REVIEW, color: "#a855f7" },
+      { name: "Готов", value: taskStatusCounts.REVIEW, color: "#a855f7" },
       { name: "Новые", value: taskStatusCounts.NEW, color: "#eab308" },
     ].filter((item) => item.value > 0) // Фильтруем, чтобы показывать только непустые значения
   }

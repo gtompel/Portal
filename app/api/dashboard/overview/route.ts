@@ -49,7 +49,7 @@ export async function GET() {
     const statusLabels = {
       NEW: "Новые",
       IN_PROGRESS: "В работе",
-      REVIEW: "На проверке",
+              REVIEW: "Готов",
       COMPLETED: "Завершенные",
     }
 

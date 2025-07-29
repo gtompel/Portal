@@ -133,7 +133,8 @@ model Task {
   title       String
   description String?
   status      TaskStatus @default(NEW)
-  priority    TaskPriority @default(MEDIUM)
+  priority    TaskPriority @default(LOW)
+  networkType NetworkType @default(EMVS)
   dueDate     DateTime?
   assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
   assigneeId  String?
@@ -141,6 +142,7 @@ model Task {
   creatorId   String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  isArchived  Boolean   @default(false)
   comments    TaskComment[]
   taskNumber Int?
 
@@ -158,6 +160,12 @@ enum TaskPriority {
   LOW
   MEDIUM
   HIGH
+}
+
+enum NetworkType {
+  EMVS
+  INTERNET
+  ASZI
 }
 
 model TaskComment {

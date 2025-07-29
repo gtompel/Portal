@@ -67,10 +67,12 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
     if (body.description !== undefined) updateData.description = body.description
     if (body.status !== undefined) updateData.status = body.status
     if (body.priority !== undefined) updateData.priority = body.priority
+    if (body.networkType !== undefined) updateData.networkType = body.networkType
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null
     if (body.assigneeId !== undefined) {
       updateData.assigneeId = body.assigneeId === "" || body.assigneeId === "not_assigned" ? null : body.assigneeId;
     }
+    if (body.isArchived !== undefined) updateData.isArchived = body.isArchived
 
     // Обновляем задачу
     const updatedTask = await prisma.task.update({

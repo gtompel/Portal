@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AvatarUpload } from "@/components/avatar-upload"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -104,7 +105,7 @@ export function EmployeeProfile({ id }: { id: string }) {
   const [employeeData, setEmployeeData] = useState<EmployeeDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
+
   const [isEditingBio, setIsEditingBio] = useState(false)
   const [isAddingEducation, setIsAddingEducation] = useState(false)
   const [isEditingEducation, setIsEditingEducation] = useState(false)
@@ -112,7 +113,7 @@ export function EmployeeProfile({ id }: { id: string }) {
   const [isAddingExperience, setIsAddingExperience] = useState(false)
   const [isEditingExperience, setIsEditingExperience] = useState(false)
   const [currentExperience, setCurrentExperience] = useState<any>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const { toast } = useToast()
 
   // Форма для редактирования биографии
@@ -208,67 +209,35 @@ export function EmployeeProfile({ id }: { id: string }) {
     }
   }, [currentExperience, experienceForm])
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    setIsUploading(true)
-
+  const handleAvatarChange = async (avatarUrl: string) => {
     try {
-      // Создаем FormData для загрузки файла
-      const formData = new FormData()
-      formData.append("file", file)
-
-      // Отправляем файл на сервер
-      const uploadResponse = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error("Не удалось загрузить файл")
-      }
-
-      const uploadResult = await uploadResponse.json()
-
-      // Обновляем аватар пользователя
+      // Обновляем аватар в базе данных
       const updateResponse = await fetch(`/api/users/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          avatar: uploadResult.url,
+          avatar: avatarUrl,
         }),
       })
 
       if (!updateResponse.ok) {
-        throw new Error("Не удалось обновить аватар")
+        throw new Error("Ошибка при обновлении профиля")
       }
 
-      const updatedUser = await updateResponse.json()
-
-      // Обновляем данные сотрудника
-      if (employeeData) {
-        setEmployeeData({
-          ...employeeData,
-          avatar: uploadResult.url,
-        })
-      }
-
-      toast({
-        title: "Успешно",
-        description: "Аватар успешно обновлен",
-      })
-    } catch (err) {
-      console.error("Ошибка при загрузке аватара:", err)
+      // Обновляем локальное состояние
+      setEmployeeData((prev) => prev ? {
+        ...prev,
+        avatar: avatarUrl,
+      } : null)
+    } catch (error) {
+      console.error("Ошибка обновления аватара:", error)
       toast({
         title: "Ошибка",
-        description: "Не удалось загрузить аватар",
+        description: "Не удалось обновить фото профиля",
         variant: "destructive",
       })
-    } finally {
-      setIsUploading(false)
     }
   }
 
@@ -541,9 +510,7 @@ export function EmployeeProfile({ id }: { id: string }) {
     }
   }
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click()
-  }
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -633,29 +600,20 @@ export function EmployeeProfile({ id }: { id: string }) {
       <div className="lg:col-span-1 space-y-6">
         <Card>
           <CardContent className="pt-6 text-center">
-            <div className="relative mx-auto mb-4 group">
-              <Avatar className="h-32 w-32 mx-auto">
-                <AvatarImage src={employeeData.avatar || undefined} alt={employeeData.name} />
-                <AvatarFallback className="text-4xl">{employeeData.initials}</AvatarFallback>
-              </Avatar>
-
-              {isOwnProfile && (
-                <>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                  />
-                  <button
-                    onClick={triggerFileInput}
-                    disabled={isUploading}
-                    className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 shadow-md hover:bg-primary/90 transition-colors"
-                  >
-                    {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                  </button>
-                </>
+            <div className="mx-auto mb-4">
+              {isOwnProfile ? (
+                <AvatarUpload
+                  currentAvatar={employeeData.avatar || undefined}
+                  initials={employeeData.initials}
+                  onAvatarChange={handleAvatarChange}
+                  size="lg"
+                  className="mx-auto"
+                />
+              ) : (
+                <Avatar className="h-32 w-32 mx-auto">
+                  <AvatarImage src={employeeData.avatar || undefined} alt={employeeData.name} showModal={true} />
+                  <AvatarFallback className="text-4xl">{employeeData.initials}</AvatarFallback>
+                </Avatar>
               )}
             </div>
             <h2 className="text-2xl font-bold">{employeeData.name}</h2>

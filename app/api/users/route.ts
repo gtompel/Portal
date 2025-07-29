@@ -37,10 +37,10 @@ export async function GET(request: NextRequest) {
         email: true,
         position: true,
         department: true,
-        phone: true,
         avatar: true,
         initials: true,
         status: true,
+        phone: true,
         location: true,
       },
       orderBy: {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Search, Settings, Calendar, CheckSquare, MessageSquare } from "lucide-react"
+import { Bell, Search, Calendar, CheckSquare, MessageSquare } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -177,14 +177,14 @@ export default function Header() {
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
       <div className="hidden md:flex md:flex-1">
         <form className="w-full max-w-lg">
-          <div className="relative">
+          {/* <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Поиск..."
               className="w-full bg-background pl-8 md:w-[300px] lg:w-[400px]"
             />
-          </div>
+          </div> */}
         </form>
       </div>
       <div className="flex flex-1 items-center justify-end gap-4 md:gap-2 lg:gap-4">
@@ -240,12 +240,7 @@ export default function Header() {
             </div>
           </PopoverContent>
         </Popover>
-        <Button variant="outline" size="icon" className="rounded-full" asChild>
-          <Link href="/settings">
-            <Settings className="h-4 w-4" />
-            <span className="sr-only">Настройки</span>
-          </Link>
-        </Button>
+
         {session?.user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
