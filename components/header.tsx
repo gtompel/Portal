@@ -21,7 +21,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 
 type Notification = {
   id: string
-  type: "EVENT" | "TASK" | "MESSAGE"
+  type: "EVENT" | "TASK" | "MESSAGE" | "ASSIGNED"
   title: string
   description: string
   date: string | null
@@ -137,12 +137,31 @@ export default function Header() {
         creatorName: message.sender.name,
       }))
 
-
+    // Уведомления о назначении задачи текущему пользователю
+    const assignedNotifications = tasks
+      .filter((task) =>
+        task.assignee &&
+        task.assignee.id === session?.user?.id &&
+        // Только если задача была обновлена недавно (например, за последние 2 дня)
+        new Date(task.updatedAt || task.createdAt).getTime() > Date.now() - 2 * 24 * 60 * 60 * 1000
+      )
+      .map((task) => ({
+        id: `assigned-${task.id}`,
+        type: "ASSIGNED" as const,
+        title: `Вам назначена задача: ${task.title}`,
+        description: task.description || "",
+        date: task.updatedAt || task.createdAt,
+        createdAt: task.updatedAt || task.createdAt,
+        read: false,
+        entityId: task.id,
+        creatorName: task.creator?.name || "Система",
+      }))
 
     // Объединяем и сортируем уведомления по дате создания (сначала новые)
     const allNotifications = [
       ...eventNotifications,
       ...taskNotifications,
+      ...assignedNotifications,
       ...messageNotifications,
     ]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -219,6 +238,8 @@ export default function Header() {
                         <Calendar className="h-5 w-5 text-blue-500" />
                       ) : notification.type === "TASK" ? (
                         <CheckSquare className="h-5 w-5 text-green-500" />
+                      ) : notification.type === "ASSIGNED" ? (
+                        <CheckSquare className="h-5 w-5 text-orange-500" />
                       ) : (
                         <MessageSquare className="h-5 w-5 text-purple-500" />
                       )}

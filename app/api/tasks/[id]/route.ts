@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { emitTaskEvent } from "@/lib/events"
 
 // GET /api/tasks/[id] - Получить задачу по ID
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
@@ -96,6 +97,40 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
       },
     })
 
+    // Определяем тип события в зависимости от изменений
+    let eventType: any = 'task_updated'
+    if (body.status !== undefined && body.status !== (existingTask as any).status) {
+      eventType = 'task_status_changed'
+    } else if (body.priority !== undefined && body.priority !== (existingTask as any).priority) {
+      eventType = 'task_priority_changed'
+    } else if (body.networkType !== undefined && body.networkType !== (existingTask as any).networkType) {
+      eventType = 'task_network_type_changed'
+    } else if (body.isArchived !== undefined && body.isArchived !== (existingTask as any).isArchived) {
+      eventType = body.isArchived ? 'task_archived' : 'task_updated'
+    }
+
+    // Отправляем событие об обновлении задачи
+    emitTaskEvent(eventType, { 
+      taskId: updatedTask.id, 
+      task: updatedTask,
+      userId: updatedTask.creatorId 
+    })
+
+    // После обновления задачи
+    if (
+      body.assigneeId !== undefined &&
+      body.assigneeId !== (existingTask as any).assigneeId &&
+      body.assigneeId !== "" &&
+      body.assigneeId !== "not_assigned" &&
+      body.assigneeId !== null
+    ) {
+      emitTaskEvent('task_assigned', {
+        taskId: updatedTask.id,
+        task: updatedTask,
+        userId: body.assigneeId,
+      })
+    }
+
     return NextResponse.json(updatedTask)
   } catch (error) {
     console.error("Ошибка при обновлении задачи:", error);
@@ -119,6 +154,12 @@ export async function DELETE(request: NextRequest, context: { params: { id: stri
     // Удаляем задачу
     await prisma.task.delete({
       where: { id },
+    })
+
+    // Отправляем событие об удалении задачи
+    emitTaskEvent('task_deleted', { 
+      taskId: id,
+      userId: existingTask.creatorId 
     })
 
     return NextResponse.json({ message: "Задача успешно удалена" })

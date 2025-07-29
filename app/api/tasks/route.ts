@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { emitTaskEvent } from "@/lib/events";
 
 // GET /api/tasks - Получить все задачи
 export async function GET(request: NextRequest) {
@@ -145,6 +146,13 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+    });
+
+    // Отправляем событие о создании задачи
+    emitTaskEvent('task_created', { 
+      taskId: task.id, 
+      task: task,
+      userId: body.creatorId 
     });
 
     return NextResponse.json(task, { status: 201 });

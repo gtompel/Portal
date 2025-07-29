@@ -28,6 +28,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { useSSE } from "@/hooks/use-sse"
 
 // Типы данных
 type Task = {
@@ -52,6 +53,8 @@ type Task = {
 type User = {
   id: string
   name: string
+  initials: string
+  avatar?: string
 }
 
 export function TaskList() {
@@ -72,6 +75,92 @@ export function TaskList() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
   const [isDeletingTask, setIsDeletingTask] = useState(false)
+
+  // SSE для real-time обновлений
+  const { isConnected: isSSEConnected } = useSSE('/api/tasks/events', {
+    onMessage: (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('SSE event received:', data)
+        }
+        
+        switch (data.type) {
+          case 'task_created':
+            // Добавляем новую задачу в начало списка
+            setTasks(prev => [data.task, ...prev])
+            toast({
+              title: "Новая задача",
+              description: `Создана задача: ${data.task.title}`,
+            })
+            break
+            
+          case 'task_updated':
+          case 'task_status_changed':
+          case 'task_priority_changed':
+          case 'task_network_type_changed':
+            // Обновляем существующую задачу
+            setTasks(prev => prev.map(task => 
+              task.id === data.taskId ? data.task : task
+            ))
+            toast({
+              title: "Задача обновлена",
+              description: `Задача "${data.task.title}" была изменена`,
+            })
+            break
+            
+          case 'task_deleted':
+            // Удаляем задачу из списка
+            setTasks(prev => prev.filter(task => task.id !== data.taskId))
+            toast({
+              title: "Задача удалена",
+              description: "Задача была удалена другим пользователем",
+            })
+            break
+            
+          case 'task_archived':
+            // Обновляем задачу (она будет скрыта/показана в зависимости от фильтра)
+            setTasks(prev => prev.map(task => 
+              task.id === data.taskId ? data.task : task
+            ))
+            toast({
+              title: "Задача архивирована",
+              description: `Задача "${data.task.title}" была архивирована`,
+            })
+            break
+            
+          case 'task_assigned':
+            if (session?.user?.id && data.userId === session.user.id) {
+              toast({
+                title: 'Вам назначена задача',
+                description: data.task?.title || '',
+              })
+            }
+            break;
+            
+          case 'connected':
+            if (process.env.NODE_ENV === 'development') {
+              console.log('SSE connection established')
+            }
+            break
+            
+          case 'ping':
+            // Игнорируем ping сообщения
+            break
+            
+
+        }
+      } catch (error) {
+        console.error('Error processing SSE message:', error)
+      }
+    },
+    onOpen: () => {
+      console.log('SSE connection opened')
+    },
+    onError: (error) => {
+      console.error('SSE connection error:', error)
+    }
+  })
 
   // Форма создания/редактирования задачи
   const taskSchema = z.object({
@@ -193,6 +282,8 @@ export function TaskList() {
       const formattedUsers = data.map((item: any) => ({
         id: item.id,
         name: item.name,
+        initials: getInitials(item.name),
+        avatar: item.avatar,
       }))
 
       setUsers(formattedUsers)
@@ -628,6 +719,43 @@ export function TaskList() {
     }
   }
 
+  // Быстрая смена исполнителя
+  const quickUpdateAssignee = async (taskId: string, newAssigneeId: string) => {
+    try {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.id !== taskId) return task;
+          if (newAssigneeId === "not_assigned") {
+            return { ...task, assignee: null };
+          }
+          const user = users.find((u) => u.id === newAssigneeId);
+          if (!user) return { ...task, assignee: null };
+          return {
+            ...task,
+            assignee: {
+              id: user.id,
+              name: user.name,
+              avatar: (task.assignee && task.assignee.id === user.id) ? task.assignee.avatar : undefined,
+              initials: user.name.split(" ").map((n) => n[0]).join("").toUpperCase(),
+            },
+          };
+        })
+      );
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: newAssigneeId === "not_assigned" ? null : newAssigneeId }),
+      })
+      if (!response.ok) throw new Error("Не удалось обновить исполнителя")
+      toast({ title: "Исполнитель обновлен", description: `Исполнитель изменен` })
+      fetchTasks()
+    } catch (error) {
+      console.error("Ошибка при обновлении исполнителя:", error)
+      toast({ title: "Ошибка", description: "Не удалось обновить исполнителя", variant: "destructive" })
+      fetchTasks()
+    }
+  }
+
   const archiveTask = async (taskId: string) => {
     try {
       // Оптимистичное обновление UI
@@ -687,9 +815,18 @@ export function TaskList() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">
-          {showArchived ? "Архив настроек АРМ" : "Настройка АРМ"}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold">
+            {showArchived ? "Архив настроек АРМ" : "Настройка АРМ"}
+          </h2>
+          {/* Индикатор SSE подключения */}
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isSSEConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-xs text-muted-foreground">
+              {isSSEConnected ? 'Real-time' : 'Offline'}
+            </span>
+          </div>
+        </div>
       </div>
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <div className="flex gap-2 flex-1">
@@ -1167,19 +1304,46 @@ export function TaskList() {
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate">{task.description || "-"}</TableCell>
                   <TableCell>
-                    {task.assignee ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={task.assignee.avatar || ""} />
-                          <AvatarFallback className="text-xs">
-                            {task.assignee.initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{task.assignee.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">Не назначен</span>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-auto p-0 hover:bg-transparent group">
+                          {task.assignee ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={task.assignee.avatar || ""} />
+                                <AvatarFallback className="text-xs">{task.assignee.initials}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm cursor-pointer group-hover:underline">
+                                {task.assignee.name}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Не назначен</span>
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <div className="px-2 py-1.5 text-sm font-semibold">Изменить исполнителя</div>
+                        <div className="-mx-1 my-1 h-px bg-muted"></div>
+                        <DropdownMenuItem
+                          onClick={() => quickUpdateAssignee(task.id, "not_assigned")}
+                          className={!task.assignee ? "bg-accent" : ""}
+                        >
+                          <span className="mr-2">Не назначен</span>
+                          {!task.assignee && <Check className="ml-auto h-4 w-4" />}
+                        </DropdownMenuItem>
+                        {users.map((user) => (
+                          <DropdownMenuItem
+                            key={user.id}
+                            onClick={() => quickUpdateAssignee(task.id, user.id)}
+                            className={task.assignee?.id === user.id ? "bg-accent" : ""}
+                          >
+                            <span className="mr-2">{user.name}</span>
+                            {task.assignee?.id === user.id && <Check className="ml-auto h-4 w-4" />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
