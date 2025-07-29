@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { usePathname, useRouter } from "next/navigation"
 import Sidebar from "@/components/sidebar"
@@ -18,26 +18,37 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
+  const [hasInitialized, setHasInitialized] = useState(false)
 
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname?.startsWith("/auth/reset-password")
+  const isPublicRoute = useMemo(() => 
+    publicRoutes.includes(pathname) || pathname?.startsWith("/auth/reset-password"), 
+    [pathname]
+  )
 
   useEffect(() => {
+    // Инициализация только один раз
+    if (!hasInitialized && status !== "loading") {
+      setHasInitialized(true)
+      setIsLoading(false)
+    }
+  }, [status, hasInitialized])
+
+  useEffect(() => {
+    // Только после инициализации проверяем аутентификацию
+    if (!hasInitialized) return
+
     // Если страница не публичная и нет сессии, перенаправляем на логин
-    if (!isLoading && !isPublicRoute && status === "unauthenticated") {
+    if (!isPublicRoute && status === "unauthenticated") {
       router.push("/auth/login")
     }
 
     // Если есть сессия и пользователь на странице аутентификации, перенаправляем на главную
-    if (!isLoading && isPublicRoute && status === "authenticated") {
+    if (isPublicRoute && status === "authenticated") {
       router.push("/")
     }
+  }, [status, router, pathname, isPublicRoute, hasInitialized])
 
-    if (status !== "loading") {
-      setIsLoading(false)
-    }
-  }, [status, router, pathname, isPublicRoute, isLoading])
-
-  // Показываем загрузку пока проверяем аутентификацию
+  // Показываем загрузку только при первой инициализации
   if (isLoading) {
     return <LoadingScreen />
   }

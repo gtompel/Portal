@@ -73,12 +73,23 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
   return response
 }
 
+// Кэш для проверки аутентификации (5 секунд)
+const authCache = new Map<string, { result: boolean; timestamp: number }>()
+const AUTH_CACHE_TTL = 5000 // 5 секунд
+
 // Проверка аутентификации
 export async function checkAuth(request: NextRequest): Promise<boolean> {
   try {
     if (!process.env.NEXTAUTH_SECRET) {
       console.error('NEXTAUTH_SECRET is not defined')
       return false
+    }
+
+    // Проверяем кэш
+    const cacheKey = request.headers.get('cookie') || 'no-cookie'
+    const cached = authCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < AUTH_CACHE_TTL) {
+      return cached.result
     }
 
     // Определяем имя куки на основе NEXTAUTH_URL
@@ -97,16 +108,21 @@ export async function checkAuth(request: NextRequest): Promise<boolean> {
       cookieName
     })
 
+    const result = !!token
+
+    // Кэшируем результат
+    authCache.set(cacheKey, { result, timestamp: Date.now() })
+
     if (process.env.NODE_ENV === 'development') {
       console.log('Auth check for:', request.nextUrl.pathname)
-      console.log('Token exists:', !!token)
+      console.log('Token exists:', result)
       console.log('Cookie name used:', cookieName)
       if (token) {
         console.log('Token payload:', { id: token.id, email: token.email, role: token.role })
       }
     }
 
-    return !!token
+    return result
   } catch (error) {
     console.error('Auth check error:', error)
     return false

@@ -1,6 +1,20 @@
 import { NextRequest } from 'next/server'
 import { taskEvents } from '@/lib/events'
 
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || '*'
+  
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Headers': 'Cache-Control, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    },
+  })
+}
+
 export async function GET(request: NextRequest) {
   try {
     const stream = new ReadableStream({
@@ -50,13 +64,18 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Получаем origin из заголовков запроса
+    const origin = request.headers.get('origin') || '*'
+    
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control',
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Headers': 'Cache-Control, Content-Type',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'X-Accel-Buffering': 'no', // Отключаем буферизацию для nginx
       },
     })

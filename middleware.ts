@@ -36,6 +36,7 @@ const PUBLIC_API_ROUTES = [
   '/api/auth/providers',
   '/api/auth/verify-request',
   '/api/upload',
+  '/api/tasks/events', // SSE роут
 ]
 
 // Роуты, которые требуют аутентификации
@@ -90,6 +91,11 @@ export async function middleware(request: NextRequest) {
   
   // Обработка API роутов
   if (isApiRequest(pathname)) {
+    // Для SSE роутов не применяем middleware
+    if (pathname === '/api/tasks/events') {
+      return NextResponse.next()
+    }
+    
     const response = NextResponse.next()
     
     // Добавляем CORS для всех API роутов
