@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 дней
   },
   pages: {
     signIn: "/auth/login",
@@ -14,6 +15,21 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
     newUser: "/auth/register",
   },
+  // Добавляем конфигурацию для продакшена
+  ...(process.env.NODE_ENV === 'production' && {
+    cookies: {
+      sessionToken: {
+        name: `__Secure-next-auth.session-token`,
+        options: {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          secure: true,
+          domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+        }
+      }
+    }
+  }),
   providers: [
     CredentialsProvider({
       name: "Credentials",

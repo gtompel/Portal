@@ -5,7 +5,7 @@ import type { CorsConfig, SecurityConfig } from '@/types/middleware'
 // Конфигурация CORS
 export const corsConfig: CorsConfig = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.vercel.app'] // Замени на свой домен
+    ? ['https://portal-arm.vercel.app'] // Реальный домен Vercel
     : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://172.16.10.245:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   headers: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -65,10 +65,26 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
 // Проверка аутентификации
 export async function checkAuth(request: NextRequest): Promise<boolean> {
   try {
+    // Проверяем наличие секрета
+    if (!process.env.NEXTAUTH_SECRET) {
+      console.error('NEXTAUTH_SECRET is not defined')
+      return false
+    }
+
     const token = await getToken({ 
       req: request, 
       secret: process.env.NEXTAUTH_SECRET 
     })
+    
+    // Добавляем отладочную информацию
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Auth check for:', request.nextUrl.pathname)
+      console.log('Token exists:', !!token)
+      if (token) {
+        console.log('Token payload:', { id: token.id, email: token.email, role: token.role })
+      }
+    }
+    
     return !!token
   } catch (error) {
     console.error('Auth check error:', error)

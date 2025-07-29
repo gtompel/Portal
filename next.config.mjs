@@ -31,7 +31,7 @@ const nextConfig = {
             key: 'Access-Control-Allow-Origin',
             value: process.env.NODE_ENV === 'development' 
               ? '*' 
-              : 'https://your-domain.vercel.app'
+              : 'https://portal-arm.vercel.app'
           },
           {
             key: 'Access-Control-Allow-Methods',
