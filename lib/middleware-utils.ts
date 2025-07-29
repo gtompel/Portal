@@ -5,8 +5,8 @@ import type { CorsConfig, SecurityConfig } from '@/types/middleware'
 // Конфигурация CORS
 export const corsConfig: CorsConfig = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] // Замени на свой домен
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    ? ['https://your-domain.vercel.app'] // Замени на свой домен
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://172.16.10.245:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   headers: ['Content-Type', 'Authorization', 'X-Requested-With'],
   maxAge: 86400,

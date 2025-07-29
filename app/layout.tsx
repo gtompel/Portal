@@ -29,8 +29,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <Analytics />
-            <SpeedInsights />
+            {process.env.NODE_ENV === 'production' && <Analytics />}
+            {process.env.NODE_ENV === 'production' && <SpeedInsights />}
             {children}
           </AuthProvider>
         </ThemeProvider>

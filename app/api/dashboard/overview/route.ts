@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
+
+// Кеширование для overview
+let overviewCache: any = null
+let overviewCacheTimestamp = 0
+const OVERVIEW_CACHE_DURATION = 5 * 60 * 1000 // 5 минут
 
 export async function GET(request: Request) {
   try {
@@ -13,9 +18,16 @@ export async function GET(request: Request) {
     if (!token?.sub) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    // Проверяем кеш
+    const now = Date.now()
+    if (overviewCache && (now - overviewCacheTimestamp) < OVERVIEW_CACHE_DURATION) {
+      return NextResponse.json(overviewCache)
+    }
+
     // Получаем данные о задачах за последние 6 месяцев
-    const now = new Date()
-    const sixMonthsAgo = new Date(now)
+    const currentDate = new Date()
+    const sixMonthsAgo = new Date(currentDate)
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
     // Получаем статистику по задачам по месяцам
@@ -102,11 +114,20 @@ export async function GET(request: Request) {
       color: documentColors[doc.type as keyof typeof documentColors] || "#94a3b8",
     }))
 
-    return NextResponse.json({
+    const result = {
       taskData,
       statusData,
       documentData,
-    })
+    }
+
+    // Обновляем кеш
+    overviewCache = result
+    overviewCacheTimestamp = now
+
+    const response = NextResponse.json(result)
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+    
+    return response
   } catch (error) {
     console.error("Ошибка при получении данных обзора:", error)
     return NextResponse.json({ error: "Ошибка при получении данных обзора" }, { status: 500 })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -42,30 +42,33 @@ export function Overview() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true)
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true)
 
-        // В реальном приложении здесь должен быть запрос к API
-        const response = await fetch("/api/dashboard/overview")
-
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить данные обзора")
+      const response = await fetch("/api/dashboard/overview", {
+        headers: {
+          'Cache-Control': 'max-age=300'
         }
+      })
 
-        const data = await response.json()
-        setData(data)
-      } catch (err) {
-        console.error("Ошибка при загрузке данных обзора:", err)
-        setError("Не удалось загрузить данные обзора")
-      } finally {
-        setIsLoading(false)
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить данные обзора")
       }
-    }
 
-    fetchData()
+      const data = await response.json()
+      setData(data)
+    } catch (err) {
+      console.error("Ошибка при загрузке данных обзора:", err)
+      setError("Не удалось загрузить данные обзора")
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   if (error) {
     return (

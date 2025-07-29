@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -26,30 +26,32 @@ export function DashboardStats() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setIsLoading(true)
+  const fetchStats = useCallback(async () => {
+    try {
+      setIsLoading(true)
 
-        // В реальном приложении здесь должен быть запрос к API
-        const response = await fetch("/api/dashboard/stats")
-
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить статистику")
+      const response = await fetch("/api/dashboard/stats", {
+        headers: {
+          'Cache-Control': 'max-age=300'
         }
+      })
 
-        const data = await response.json()
-        setStats(data)
-      } catch (err) {
-       // console.error("Ошибка при загрузке статистики:", err)
-        setError("Не удалось загрузить статистику")
-      } finally {
-        setIsLoading(false)
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить статистику")
       }
-    }
 
-    fetchStats()
+      const data = await response.json()
+      setStats(data)
+    } catch (err) {
+      setError("Не удалось загрузить статистику")
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

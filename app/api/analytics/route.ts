@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
+
+// Кеширование для analytics
+let analyticsCache: any = null
+let analyticsCacheTimestamp = 0
+const ANALYTICS_CACHE_DURATION = 10 * 60 * 1000 // 10 минут
 
 // GET /api/analytics - Получить аналитические данные
 export async function GET(request: NextRequest) {
@@ -12,6 +17,13 @@ export async function GET(request: NextRequest) {
     if (!token?.sub) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    // Проверяем кеш
+    const now = Date.now()
+    if (analyticsCache && (now - analyticsCacheTimestamp) < ANALYTICS_CACHE_DURATION) {
+      return NextResponse.json(analyticsCache)
+    }
+
   try {
     const { searchParams } = new URL(request.url)
     const period = searchParams.get("period") || "year"
@@ -111,7 +123,14 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    return NextResponse.json(stats)
+    // Обновляем кеш
+    analyticsCache = stats
+    analyticsCacheTimestamp = now
+
+    const response = NextResponse.json(stats)
+    response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200')
+    
+    return response
   } catch (error) {
     console.error("Ошибка при получении аналитических данных:", error)
     return NextResponse.json({ error: "Ошибка при получении аналитических данных" }, { status: 500 })

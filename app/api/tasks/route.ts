@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { emitTaskEvent } from "@/lib/events";
 
 // GET /api/tasks - Получить все задачи

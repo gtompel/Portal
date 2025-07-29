@@ -27,6 +27,11 @@ const PUBLIC_ROUTES = [
 // API роуты, которые не требуют аутентификации
 const PUBLIC_API_ROUTES = [
   '/api/auth',
+  '/api/auth/callback',
+  '/api/auth/session',
+  '/api/auth/csrf',
+  '/api/auth/signin',
+  '/api/auth/signout',
   '/api/upload',
 ]
 
@@ -52,7 +57,7 @@ function isPublicRoute(pathname: string): boolean {
 
 // Проверка, является ли API роут публичным
 function isPublicApiRoute(pathname: string): boolean {
-  return PUBLIC_API_ROUTES.some(route => pathname.startsWith(route))
+  return PUBLIC_API_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
 }
 
 // Проверка, является ли роут защищенным
