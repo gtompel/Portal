@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Users, CalendarIcon, Loader2 } from "lucide-react"
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Users, CalendarIcon, Loader2, CheckSquare } from "lucide-react"
 import { ru } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { useToast } from "@/hooks/use-toast"
@@ -75,8 +75,9 @@ export function EventCalendar() {
   const { data: session } = useSession()
   const { toast } = useToast()
   const [date, setDate] = useState<Date>(new Date())
-  const [view, setView] = useState<"month" | "day">("month")
+  const [view, setView] = useState<"year" | "month" | "day">("year")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [events, setEvents] = useState<Event[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -289,6 +290,18 @@ export function EventCalendar() {
 
   const handleBackToMonth = () => {
     setView("month")
+    setSelectedTask(null)
+  }
+
+  const handleMonthClick = (monthDate: Date) => {
+    setDate(monthDate)
+    setView("month")
+  }
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task)
+    setView("day")
+    setSelectedDate(new Date(task.dueDate))
   }
 
   // Получаем события и задачи для выбранной даты
@@ -315,11 +328,17 @@ export function EventCalendar() {
 
   // Получаем все даты, на которые есть события или задачи
   const getDaysWithEventsOrTasks = () => {
-    const eventDates = events.map((event) => event.date)
-
+    const eventDates = events.map((event) => new Date(event.date))
     const taskDates = tasks.filter((task) => task.dueDate).map((task) => new Date(task.dueDate))
-
-    return [...eventDates, ...taskDates]
+    
+    // Убираем дубликаты и нормализуем даты (убираем время)
+    const allDates = [...eventDates, ...taskDates].map(date => {
+      const normalized = new Date(date)
+      normalized.setHours(0, 0, 0, 0)
+      return normalized
+    })
+    
+    return [...new Set(allDates.map(date => date.getTime()))].map(timestamp => new Date(timestamp))
   }
 
   const getEventTypeColor = (type: Event["type"]) => {
@@ -417,6 +436,35 @@ export function EventCalendar() {
     setDate(newDate)
   }
 
+  const handlePrevYear = () => {
+    const newDate = new Date(date)
+    newDate.setFullYear(newDate.getFullYear() - 1)
+    setDate(newDate)
+  }
+
+  const handleNextYear = () => {
+    const newDate = new Date(date)
+    newDate.setFullYear(newDate.getFullYear() + 1)
+    setDate(newDate)
+  }
+
+  const generateYearMonths = () => {
+    const months = []
+    const currentYear = date.getFullYear()
+    
+    for (let month = 0; month < 12; month++) {
+      const monthDate = new Date(currentYear, month, 1)
+      months.push({
+        month,
+        monthName: monthNames[month],
+        date: monthDate,
+        year: currentYear
+      })
+    }
+    
+    return months
+  }
+
   const daysWithEventsOrTasks = getDaysWithEventsOrTasks()
   const { events: eventsForSelectedDate, tasks: tasksForSelectedDate } = getEventsAndTasksForDate(selectedDate)
 
@@ -444,6 +492,28 @@ export function EventCalendar() {
               Назад к календарю
             </Button>
           )}
+          {view === "month" && (
+            <Button variant="outline" size="sm" onClick={() => setView("year")}>
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Назад к году
+            </Button>
+          )}
+          <div className="flex gap-1">
+            <Button 
+              variant={view === "year" ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setView("year")}
+            >
+              Год
+            </Button>
+            <Button 
+              variant={view === "month" ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setView("month")}
+            >
+              Месяц
+            </Button>
+          </div>
         </div>
         <Dialog>
           <DialogTrigger asChild>
@@ -651,68 +721,310 @@ export function EventCalendar() {
         </Dialog>
       </div>
 
-      {view === "month" && (
+      {view === "year" && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+              <Button variant="outline" size="icon" onClick={handlePrevYear}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <CardTitle>
-                {currentMonthName} {currentYear}
+              <CardTitle className="text-xl">
+                {currentYear}
               </CardTitle>
-              <Button variant="outline" size="icon" onClick={handleNextMonth}>
+              <Button variant="outline" size="icon" onClick={handleNextYear}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={handleDateSelect}
-              className="rounded-md border"
-              locale={ru}
-              modifiers={{
-                hasEvent: daysWithEventsOrTasks,
-              }}
-              modifiersStyles={{
-                hasEvent: {
-                  fontWeight: "bold",
-                  textDecoration: "underline",
-                  color: "var(--primary)",
-                },
-              }}
-            />
+            <div className="grid grid-cols-3 gap-4">
+              {generateYearMonths().map((monthData) => {
+                const monthEvents = events.filter(event => {
+                  const eventDate = new Date(event.date)
+                  return eventDate.getFullYear() === monthData.year && eventDate.getMonth() === monthData.month
+                })
+                const monthTasks = tasks.filter(task => {
+                  if (!task.dueDate) return false
+                  const taskDate = new Date(task.dueDate)
+                  return taskDate.getFullYear() === monthData.year && taskDate.getMonth() === monthData.month
+                })
+                const hasEvents = monthEvents.length > 0 || monthTasks.length > 0
+                
+                return (
+                  <div
+                    key={monthData.month}
+                    className="p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                    onClick={() => handleMonthClick(monthData.date)}
+                  >
+                    <div className="text-sm font-medium mb-2">{monthData.monthName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {monthEvents.length + monthTasks.length} событий
+                    </div>
+                    {hasEvents && (
+                      <div className="mt-1">
+                        <div className="w-2 h-2 bg-primary rounded-full mx-auto"></div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
+      )}
+
+      {view === "month" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Календарь */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <CardTitle>
+                    {currentMonthName} {currentYear}
+                  </CardTitle>
+                  <Button variant="outline" size="icon" onClick={handleNextMonth}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={handleDateSelect}
+                  className="rounded-md border"
+                  locale={ru}
+                  modifiers={{
+                    hasEvent: daysWithEventsOrTasks,
+                  }}
+                  modifiersStyles={{
+                    hasEvent: {
+                      fontWeight: "bold",
+                      backgroundColor: "hsl(var(--primary))",
+                      color: "hsl(var(--primary-foreground))",
+                      borderRadius: "50%",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                    },
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Боковая панель со списком событий */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>События в {currentMonthName}</CardTitle>
+                <CardDescription>
+                  Все события и задачи на этот месяц
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(() => {
+                  const monthEvents = events.filter(event => {
+                    const eventDate = new Date(event.date)
+                    return eventDate.getFullYear() === currentYear && eventDate.getMonth() === date.getMonth()
+                  })
+                  const monthTasks = tasks.filter(task => {
+                    if (!task.dueDate) return false
+                    const taskDate = new Date(task.dueDate)
+                    return taskDate.getFullYear() === currentYear && taskDate.getMonth() === date.getMonth()
+                  })
+
+                  const allItems = [
+                    ...monthEvents.map(event => ({
+                      ...event,
+                      type: 'event' as const,
+                      date: new Date(event.date),
+                      eventType: event.type
+                    })),
+                    ...monthTasks.map(task => ({
+                      ...task,
+                      type: 'task' as const,
+                      date: new Date(task.dueDate)
+                    }))
+                  ].sort((a, b) => a.date.getTime() - b.date.getTime())
+
+                  if (allItems.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <CalendarIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Нет событий в этом месяце</p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {allItems.map((item, index) => (
+                                                 <div
+                           key={`${item.type}-${item.id}`}
+                           className={`p-3 border rounded-lg transition-colors cursor-pointer ${
+                             item.type === 'task' 
+                               ? 'hover:bg-blue-50 hover:border-blue-200' 
+                               : 'hover:bg-accent'
+                           }`}
+                          onClick={() => {
+                            if (item.type === 'event') {
+                              setSelectedDate(item.date)
+                              setView("day")
+                            } else if (item.type === 'task') {
+                              handleTaskClick(item)
+                            }
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                                             <div className="flex items-center gap-2 mb-1">
+                                 {item.type === 'task' && (
+                                   <CheckSquare className="h-4 w-4 text-blue-600" />
+                                 )}
+                                 {item.type === 'event' && (
+                                   <CalendarIcon className="h-4 w-4 text-green-600" />
+                                 )}
+                                <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded">
+                                  {(() => {
+                                    const dayEvents = events.filter(event => {
+                                      const eventDate = new Date(event.date)
+                                      return eventDate.getDate() === item.date.getDate() && 
+                                             eventDate.getMonth() === item.date.getMonth() && 
+                                             eventDate.getFullYear() === item.date.getFullYear()
+                                    })
+                                    const dayTasks = tasks.filter(task => {
+                                      if (!task.dueDate) return false
+                                      const taskDate = new Date(task.dueDate)
+                                      return taskDate.getDate() === item.date.getDate() && 
+                                             taskDate.getMonth() === item.date.getMonth() && 
+                                             taskDate.getFullYear() === item.date.getFullYear()
+                                    })
+                                    return dayEvents.length + dayTasks.length
+                                  })()}
+                                </span>
+                                                                 <Badge 
+                                   variant="outline" 
+                                   className={item.type === 'event' 
+                                     ? getEventTypeColor((item as any).eventType) 
+                                     : getTaskPriorityColor(item.priority)
+                                   }
+                                 >
+                                   {item.type === 'event' 
+                                     ? getEventTypeText((item as any).eventType) 
+                                     : getTaskPriorityText(item.priority)
+                                   }
+                                 </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {item.date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                                </span>
+                              </div>
+                              <h4 className="font-medium text-sm">{item.title}</h4>
+                              {item.type === 'event' && item.startTime && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {item.startTime} - {item.endTime}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
 
       {view === "day" && (
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>
-                {selectedDate.toLocaleDateString("ru-RU", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </CardTitle>
-              <CardDescription>
-                {eventsForSelectedDate.length + tasksForSelectedDate.length}{" "}
-                {eventsForSelectedDate.length + tasksForSelectedDate.length === 1
-                  ? "событие"
-                  : eventsForSelectedDate.length + tasksForSelectedDate.length >= 2 &&
-                      eventsForSelectedDate.length + tasksForSelectedDate.length <= 4
-                    ? "события"
-                    : "событий"}
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>
+                    {selectedDate.toLocaleDateString("ru-RU", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedTask 
+                      ? "Выбранная задача" 
+                      : `${eventsForSelectedDate.length + tasksForSelectedDate.length} ${
+                          eventsForSelectedDate.length + tasksForSelectedDate.length === 1
+                            ? "событие"
+                            : eventsForSelectedDate.length + tasksForSelectedDate.length >= 2 &&
+                              eventsForSelectedDate.length + tasksForSelectedDate.length <= 4
+                              ? "события"
+                              : "событий"
+                        }`
+                    }
+                  </CardDescription>
+                </div>
+                <Button variant="outline" onClick={handleBackToMonth}>
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Назад к месяцу
+                </Button>
+              </div>
             </CardHeader>
           </Card>
 
-          {eventsForSelectedDate.length > 0 || tasksForSelectedDate.length > 0 ? (
+          {selectedTask ? (
+            <div className="space-y-4">
+              {/* Выбранная задача */}
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-primary">Выбранная задача</CardTitle>
+                      <CardDescription>
+                        Срок: {new Date(selectedTask.dueDate).toLocaleDateString("ru-RU")}
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className={getTaskPriorityColor(selectedTask.priority)}>
+                      Приоритет: {getTaskPriorityText(selectedTask.priority)}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pb-2">
+                  <p className="mb-4 font-medium">{selectedTask.title}</p>
+                  <p className="mb-4">{selectedTask.description || "Описание отсутствует"}</p>
+                  <div className="grid gap-2">
+                    {selectedTask.assignee && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>Исполнитель: {selectedTask.assignee.name}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => {
+                      window.location.href = `/tasks?taskId=${selectedTask.id}`
+                    }}
+                  >
+                    Перейти к задаче
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setSelectedTask(null)}
+                  >
+                    Закрыть
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          ) : eventsForSelectedDate.length > 0 || tasksForSelectedDate.length > 0 ? (
             <div className="space-y-4">
               {/* События */}
               {eventsForSelectedDate.length > 0 && (
@@ -799,7 +1111,14 @@ export function EventCalendar() {
                         </div>
                       </CardContent>
                       <CardFooter>
-                        <Button variant="outline" className="w-full">
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={() => {
+                            // Перенаправляем на страницу задач
+                            window.location.href = `/tasks?taskId=${task.id}`
+                          }}
+                        >
                           Перейти к задаче
                         </Button>
                       </CardFooter>

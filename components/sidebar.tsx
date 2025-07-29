@@ -92,8 +92,13 @@ export default function Sidebar() {
   return (
     <div className="relative border-r bg-background">
       <div className="flex h-16 items-center justify-between border-b px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          {!isCollapsed && <span>ГАиОАРМ</span>}
+        <Link href="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity">
+          <img 
+            src="/ARM.png" 
+            alt="ГАиОАРМ" 
+            className="h-12 w-12 object-contain"
+          />
+          {!isCollapsed && <span className="text-lg">ГАиОАРМ</span>}
         </Link>
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsCollapsed(!isCollapsed)}>
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
