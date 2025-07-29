@@ -17,6 +17,20 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Для Vercel используем polling вместо SSE
+    if (process.env.VERCEL) {
+      return new Response(JSON.stringify({
+        type: 'polling',
+        message: 'Use polling for Vercel deployment',
+        timestamp: Date.now()
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+      })
+    }
+
     const stream = new ReadableStream({
       start(controller) {
         // Функция для отправки события клиенту

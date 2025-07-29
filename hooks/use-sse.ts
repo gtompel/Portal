@@ -30,6 +30,41 @@ export function useSSE(url: string, options: SSEOptions = {}) {
       eventSourceRef.current.close()
     }
 
+    // Не подключаемся если URL пустой
+    if (!url) {
+      setIsConnected(false)
+      return
+    }
+
+    // Для Vercel используем polling
+    if (process.env.VERCEL || window.location.hostname.includes('vercel.app')) {
+      console.log('Using polling for Vercel deployment')
+      setIsConnected(true)
+      onOpen?.()
+      
+      // Polling каждые 5 секунд
+      const pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/tasks/poll')
+          if (response.ok) {
+            const data = await response.json()
+            if (data.type === 'polling') {
+              // Отправляем ping событие
+              onMessage?.(new MessageEvent('message', {
+                data: JSON.stringify({ type: 'ping', timestamp: Date.now() })
+              }))
+            }
+          }
+        } catch (error) {
+          console.error('Polling error:', error)
+        }
+      }, 5000)
+
+      // Сохраняем interval для очистки
+      eventSourceRef.current = { close: () => clearInterval(pollInterval) } as any
+      return
+    }
+
     try {
       if (process.env.NODE_ENV === 'development') {
         console.log('Connecting to SSE:', url)
@@ -113,6 +148,12 @@ export function useSSE(url: string, options: SSEOptions = {}) {
   }
 
   useEffect(() => {
+    // Не подключаемся если URL пустой
+    if (!url) {
+      setIsConnected(false)
+      return
+    }
+
     connect()
 
     return () => {
