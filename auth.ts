@@ -15,21 +15,42 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
     newUser: "/auth/register",
   },
-  // Добавляем конфигурацию для продакшена
-  ...(process.env.NODE_ENV === 'production' && {
-    cookies: {
+  cookies: (() => {
+    const url = process.env.NEXTAUTH_URL || '';
+    const host = url.replace(/^https?:\/\//, '').split(':')[0];
+    const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(host);
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const isHTTPS = url.startsWith('https://');
+    
+    // Для IP адресов и localhost используем обычную куку
+    if (isIP || isLocalhost) {
+      return {
+        sessionToken: {
+          name: 'next-auth.session-token',
+          options: {
+            httpOnly: true,
+            sameSite: 'lax',
+            path: '/',
+            secure: false
+          }
+        }
+      };
+    }
+    
+    // Для production доменов используем Secure куку
+    return {
       sessionToken: {
-        name: `__Secure-next-auth.session-token`,
+        name: '__Secure-next-auth.session-token',
         options: {
           httpOnly: true,
           sameSite: 'lax',
           path: '/',
-          secure: true,
-          domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+          secure: isHTTPS,
+          domain: host
         }
       }
-    }
-  }),
+    };
+  })(),
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -38,30 +59,44 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Пароль", type: "password" },
       },
       async authorize(credentials) {
+        console.log('🔐 Auth attempt:', { email: credentials?.email })
+        
         if (!credentials?.email || !credentials?.password) {
+          console.log('❌ Missing credentials')
           return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        })
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+          })
 
-        if (!user) {
+          if (!user) {
+            console.log('❌ User not found:', credentials.email)
+            return null
+          }
+
+          console.log('✅ User found:', { id: user.id, email: user.email })
+
+          const passwordMatch = await compare(credentials.password, user.password)
+
+          if (!passwordMatch) {
+            console.log('❌ Password mismatch for:', credentials.email)
+            return null
+          }
+
+          console.log('✅ Password verified for:', credentials.email)
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.position,
+          } as User
+        } catch (error) {
+          console.error('❌ Auth error:', error)
           return null
         }
-
-        const passwordMatch = await compare(credentials.password, user.password)
-
-        if (!passwordMatch) {
-          return null
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.position,
-        } as User
       },
     }),
   ],
@@ -79,6 +114,19 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role
       }
       return token
+    },
+    async redirect({ url, baseUrl }) {
+      console.log('🔀 Redirect callback:', { url, baseUrl })
+      // Если URL относительный или начинается с baseUrl - разрешаем
+      if (url.startsWith('/') || url.startsWith(baseUrl)) {
+        return url
+      }
+      // Если URL начинается с http://localhost или http://172.16.10.245 - разрешаем
+      if (url.startsWith('http://localhost') || url.startsWith('http://172.16.10.245')) {
+        return url
+      }
+      // По умолчанию возвращаем на главную
+      return baseUrl
     },
   },
 }

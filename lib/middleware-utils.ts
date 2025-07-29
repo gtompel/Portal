@@ -4,9 +4,14 @@ import type { CorsConfig, SecurityConfig } from '@/types/middleware'
 
 // Конфигурация CORS
 export const corsConfig: CorsConfig = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://portal-arm.vercel.app'] // Реальный домен Vercel
-    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://172.16.10.245:3000'],
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://172.16.10.245:3000',
+    'https://portal-arm.vercel.app',
+    'http://localhost',
+    'http://127.0.0.1'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   headers: ['Content-Type', 'Authorization', 'X-Requested-With'],
   maxAge: 86400,
@@ -24,30 +29,36 @@ export const securityConfig: SecurityConfig = {
 
 // Проверка, является ли запрос из разрешенного источника
 export function isAllowedOrigin(origin: string): boolean {
-  if (typeof corsConfig.origin === 'string') {
-    return corsConfig.origin === origin
+  if (!origin) return false
+  console.log('isAllowedOrigin check:', { origin, corsConfigOrigin: corsConfig.origin })
+  if (Array.isArray(corsConfig.origin)) {
+    const result = corsConfig.origin.some(o => o === origin)
+    console.log('Array check result:', result)
+    return result
   }
-  return corsConfig.origin.includes(origin)
+  const result = corsConfig.origin === origin
+  console.log('String check result:', result)
+  return result
 }
 
 // Добавление CORS заголовков
 export function addCorsHeaders(response: NextResponse, request: NextRequest): NextResponse {
-  const origin = request.headers.get('origin')
-  
+  const origin = request.headers.get('origin') || ''
+  console.log('CORS: request origin =', origin, 'allowed =', isAllowedOrigin(origin))
+
   if (origin && isAllowedOrigin(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin)
-  } else if (corsConfig.credentials) {
-    response.headers.set('Access-Control-Allow-Origin', 'null')
   }
-  
+  // Не ставим Access-Control-Allow-Origin: * если credentials=true и origin пустой!
+
   response.headers.set('Access-Control-Allow-Methods', corsConfig.methods.join(', '))
   response.headers.set('Access-Control-Allow-Headers', corsConfig.headers.join(', '))
   response.headers.set('Access-Control-Max-Age', corsConfig.maxAge.toString())
-  
+
   if (corsConfig.credentials) {
     response.headers.set('Access-Control-Allow-Credentials', 'true')
   }
-  
+
   return response
 }
 
@@ -65,26 +76,36 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
 // Проверка аутентификации
 export async function checkAuth(request: NextRequest): Promise<boolean> {
   try {
-    // Проверяем наличие секрета
     if (!process.env.NEXTAUTH_SECRET) {
       console.error('NEXTAUTH_SECRET is not defined')
       return false
     }
 
-    const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
-    })
+    // Определяем имя куки на основе NEXTAUTH_URL
+    const url = process.env.NEXTAUTH_URL || '';
+    const host = url.replace(/^https?:\/\//, '').split(':')[0];
+    const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(host);
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     
-    // Добавляем отладочную информацию
+    const cookieName = (isIP || isLocalhost) 
+      ? 'next-auth.session-token'
+      : '__Secure-next-auth.session-token';
+
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+      cookieName
+    })
+
     if (process.env.NODE_ENV === 'development') {
       console.log('Auth check for:', request.nextUrl.pathname)
       console.log('Token exists:', !!token)
+      console.log('Cookie name used:', cookieName)
       if (token) {
         console.log('Token payload:', { id: token.id, email: token.email, role: token.role })
       }
     }
-    
+
     return !!token
   } catch (error) {
     console.error('Auth check error:', error)
@@ -153,16 +174,20 @@ export function getClientIP(request: NextRequest): string {
 // Rate limiting (базовая реализация)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
-export function checkRateLimit(ip: string, limit: number = 100, windowMs: number = 15 * 60 * 1000): boolean {
+export function checkRateLimit(ip: string, limit: number = 1000, windowMs: number = 15 * 60 * 1000): boolean {
+  // Увеличиваем лимиты для локальной разработки
+  const actualLimit = process.env.NODE_ENV === 'development' ? 10000 : limit
+  const actualWindow = process.env.NODE_ENV === 'development' ? 60 * 1000 : windowMs // 1 минута для dev
+  
   const now = Date.now()
   const record = rateLimitMap.get(ip)
   
   if (!record || now > record.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs })
+    rateLimitMap.set(ip, { count: 1, resetTime: now + actualWindow })
     return true
   }
   
-  if (record.count >= limit) {
+  if (record.count >= actualLimit) {
     return false
   }
   

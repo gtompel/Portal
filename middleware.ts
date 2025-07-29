@@ -32,6 +32,9 @@ const PUBLIC_API_ROUTES = [
   '/api/auth/csrf',
   '/api/auth/signin',
   '/api/auth/signout',
+  '/api/auth/error',
+  '/api/auth/providers',
+  '/api/auth/verify-request',
   '/api/upload',
 ]
 
@@ -71,10 +74,12 @@ export async function middleware(request: NextRequest) {
   // Логирование запросов
   logRequest(request)
   
-  // Rate limiting
-  const clientIP = getClientIP(request)
-  if (!checkRateLimit(clientIP)) {
-    return createErrorResponse('Too Many Requests', 429)
+  // Rate limiting только для не-auth роутов
+  if (!pathname.startsWith('/api/auth')) {
+    const clientIP = getClientIP(request)
+    if (!checkRateLimit(clientIP)) {
+      return createErrorResponse('Too Many Requests', 429)
+    }
   }
   
   // Обработка OPTIONS запросов для CORS
@@ -137,7 +142,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public files (images, etc.)
+     * - _vercel (Vercel internal routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|_vercel|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 } 
