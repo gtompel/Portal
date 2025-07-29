@@ -42,17 +42,47 @@ export function useSSE(url: string, options: SSEOptions = {}) {
       setIsConnected(true)
       onOpen?.()
       
+      let lastCheck = Date.now()
+      
       // Polling каждые 5 секунд
       const pollInterval = setInterval(async () => {
         try {
-          const response = await fetch('/api/tasks/poll')
+          const response = await fetch(`/api/tasks/changes?lastCheck=${lastCheck}`)
           if (response.ok) {
             const data = await response.json()
-            if (data.type === 'polling') {
-              // Отправляем ping событие
-              onMessage?.(new MessageEvent('message', {
-                data: JSON.stringify({ type: 'ping', timestamp: Date.now() })
-              }))
+            if (data.type === 'changes') {
+              lastCheck = data.timestamp
+              
+              // Если есть изменения, отправляем события
+              if (data.hasChanges) {
+                // Отправляем события для каждой измененной задачи
+                data.changedTasks.forEach((task: any) => {
+                  onMessage?.(new MessageEvent('message', {
+                    data: JSON.stringify({
+                      type: 'task_updated',
+                      taskId: task.id,
+                      task: task,
+                      timestamp: Date.now()
+                    })
+                  }))
+                })
+                
+                // Если есть новые задачи
+                if (data.newTasksCount > 0) {
+                  onMessage?.(new MessageEvent('message', {
+                    data: JSON.stringify({
+                      type: 'task_created',
+                      newTasksCount: data.newTasksCount,
+                      timestamp: Date.now()
+                    })
+                  }))
+                }
+              } else {
+                // Отправляем ping если изменений нет
+                onMessage?.(new MessageEvent('message', {
+                  data: JSON.stringify({ type: 'ping', timestamp: Date.now() })
+                }))
+              }
             }
           }
         } catch (error) {

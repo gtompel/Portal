@@ -87,12 +87,21 @@ export function TaskList() {
         
         switch (data.type) {
           case 'task_created':
-            // Добавляем новую задачу в начало списка
-            setTasks(prev => [data.task, ...prev])
-            toast({
-              title: "Новая задача",
-              description: `Создана задача: ${data.task.title}`,
-            })
+            // Если есть конкретная задача, добавляем её
+            if (data.task) {
+              setTasks(prev => [data.task, ...prev])
+              toast({
+                title: "Новая задача",
+                description: `Создана задача: ${data.task.title}`,
+              })
+            } else if (data.newTasksCount) {
+              // Если есть только количество новых задач, перезагружаем список
+              fetchTasks()
+              toast({
+                title: "Новые задачи",
+                description: `Создано ${data.newTasksCount} новых задач`,
+              })
+            }
             break
             
           case 'task_updated':

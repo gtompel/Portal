@@ -38,6 +38,7 @@ const PUBLIC_API_ROUTES = [
   '/api/upload',
   '/api/tasks/events', // SSE роут
   '/api/tasks/poll', // Polling роут для Vercel
+  '/api/tasks/changes', // API для проверки изменений
 ]
 
 // Роуты, которые требуют аутентификации
