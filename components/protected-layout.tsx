@@ -64,7 +64,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">{children}</main>
       </div>
     </div>
   )

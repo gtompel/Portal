@@ -267,13 +267,14 @@ export function Announcements() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Объявления</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-lg sm:text-xl font-semibold">Объявления</h2>
         <Dialog>
           <DialogTrigger asChild>
-            <Button className="gap-1">
+            <Button className="gap-1 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
-              <span>Новое объявление</span>
+              <span className="hidden sm:inline">Новое объявление</span>
+              <span className="sm:hidden">Добавить</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -347,7 +348,7 @@ export function Announcements() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
           Array(3)
             .fill(0)

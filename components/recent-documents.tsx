@@ -303,8 +303,8 @@ export function RecentDocuments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="flex gap-2 flex-1">
+      <div className="flex flex-col lg:flex-row justify-between gap-4">
+        <div className="flex flex-col sm:flex-row gap-2 flex-1">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -316,7 +316,7 @@ export function RecentDocuments() {
             />
           </div>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
               <SelectValue placeholder="Все типы" />
             </SelectTrigger>
             <SelectContent>
@@ -333,7 +333,7 @@ export function RecentDocuments() {
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-1">
+            <Button className="gap-1 w-full sm:w-auto">
               <FilePlus className="h-4 w-4" />
               <span>Загрузить</span>
             </Button>
@@ -435,8 +435,8 @@ export function RecentDocuments() {
         </Dialog>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[600px] lg:min-w-[800px]">
           <TableHeader>
             <TableRow>
               <TableHead>Название</TableHead>

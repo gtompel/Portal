@@ -368,11 +368,11 @@ export function EventCalendar() {
   const getTaskPriorityColor = (priority: string) => {
     switch (priority) {
       case "HIGH":
-        return "bg-blue-100 text-blue-800"
+        return "bg-green-500 text-white border-green-600"
       case "MEDIUM":
-        return "bg-gray-100 text-gray-800"
+        return "bg-red-500 text-white border-red-600"
       case "LOW":
-        return "bg-green-100 text-green-800"
+        return "bg-yellow-500 text-white border-yellow-600"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -478,20 +478,24 @@ export function EventCalendar() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          {view === "day" && (
-            <Button variant="outline" size="sm" onClick={handleBackToMonth}>
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Назад к календарю
-            </Button>
-          )}
-          {view === "month" && (
-            <Button variant="outline" size="sm" onClick={() => setView("year")}>
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Назад к году
-            </Button>
-          )}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <div className="flex items-center gap-2">
+            {view === "day" && (
+              <Button variant="outline" size="sm" onClick={handleBackToMonth}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Назад к календарю</span>
+                <span className="sm:hidden">Назад</span>
+              </Button>
+            )}
+            {view === "month" && (
+              <Button variant="outline" size="sm" onClick={() => setView("year")}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Назад к году</span>
+                <span className="sm:hidden">Назад</span>
+              </Button>
+            )}
+          </div>
           <div className="flex gap-1">
             <Button 
               variant={view === "year" ? "default" : "outline"} 
@@ -511,9 +515,10 @@ export function EventCalendar() {
         </div>
         <Dialog>
           <DialogTrigger asChild>
-            <Button className="gap-1">
+            <Button className="gap-1 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
-              <span>Новое событие</span>
+              <span className="hidden sm:inline">Новое событие</span>
+              <span className="sm:hidden">Добавить</span>
             </Button>
           </DialogTrigger>
           <DialogContent>

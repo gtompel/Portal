@@ -401,8 +401,8 @@ export function ProjectList() {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div className="flex gap-2 flex-1">
+          <div className="flex flex-col lg:flex-row justify-between gap-4">
+            <div className="flex flex-col sm:flex-row gap-2 flex-1">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -414,7 +414,7 @@ export function ProjectList() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
                   <SelectValue placeholder="Все статусы" />
                 </SelectTrigger>
                 <SelectContent>
@@ -428,9 +428,10 @@ export function ProjectList() {
 
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="gap-1">
+                <Button className="gap-1 w-full sm:w-auto">
                   <Plus className="h-4 w-4" />
-                  <span>Новый проект</span>
+                  <span className="hidden sm:inline">Новый проект</span>
+                  <span className="sm:hidden">Добавить</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -641,8 +642,8 @@ export function ProjectList() {
             </Dialog>
           </div>
 
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[600px] lg:min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Название</TableHead>

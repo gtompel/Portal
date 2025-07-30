@@ -281,7 +281,7 @@ export function MessageSystem() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[calc(100vh-12rem)]">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[600px] sm:h-[calc(100vh-12rem)]">
       <Card className="md:col-span-1">
         <CardHeader className="p-4">
           <div className="relative">

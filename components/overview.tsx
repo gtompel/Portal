@@ -102,7 +102,7 @@ export function Overview() {
             </div>
           </CardContent>
         </Card>
-        <Card className="col-span-3">
+        <Card className="col-span-1 lg:col-span-3">
           <CardHeader>
             <Skeleton className="h-6 w-32" />
             <Skeleton className="h-4 w-48" />
@@ -119,8 +119,8 @@ export function Overview() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-      <Card className="col-span-4">
+    <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
+      <Card className="col-span-1 lg:col-span-4">
         <CardHeader>
           <CardTitle>Статистика задач</CardTitle>
           <CardDescription>Количество новых и выполненных задач за последние 6 месяцев</CardDescription>
@@ -139,7 +139,7 @@ export function Overview() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
-      <Card className="col-span-3">
+      <Card className="col-span-1 lg:col-span-3">
         <CardHeader>
           <CardTitle>Распределение</CardTitle>
           <CardDescription>Статистика по типам и статусам</CardDescription>

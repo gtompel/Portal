@@ -865,82 +865,88 @@ export function TaskList() {
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold">
-                {showArchived ? "Архив настроек АРМ" : "Настройка АРМ"}
-              </h2>
-              {/* Индикатор SSE подключения */}
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isSSEConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-xs text-muted-foreground">
-                  {isSSEConnected ? 'Real-time' : 'Offline'}
-                </span>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  {showArchived ? "Архив настроек АРМ" : "Настройка АРМ"}
+                </h2>
+                {/* Индикатор SSE подключения */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${isSSEConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-xs text-muted-foreground">
+                    {isSSEConnected ? 'Real-time' : 'Offline'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Создавайте, назначайте и отслеживайте настройки автоматизированных рабочих мест
+              </p>
+            </div>
+          </div>
+          
+          {/* Фильтры и поиск */}
+          <div className="flex flex-col lg:flex-row justify-between gap-4">
+            <div className="flex flex-col sm:flex-row gap-2 flex-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Поиск по названию, описанию или исполнителю..."
+                  className="pl-8 w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
+                    <SelectValue placeholder="Все статусы" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все статусы</SelectItem>
+                    <SelectItem value="NEW">Новый</SelectItem>
+                    <SelectItem value="IN_PROGRESS">Идёт настройка</SelectItem>
+                    <SelectItem value="REVIEW">Готов</SelectItem>
+                    <SelectItem value="COMPLETED">Выдан</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={networkTypeFilter} onValueChange={setNetworkTypeFilter}>
+                  <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
+                    <SelectValue placeholder="Все сети" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все сети</SelectItem>
+                    <SelectItem value="EMVS">ЕМВС</SelectItem>
+                    <SelectItem value="INTERNET">Интернет</SelectItem>
+                    <SelectItem value="ASZI">АСЗИ</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <p className="text-muted-foreground">
-              Создавайте, назначайте и отслеживайте настройки автоматизированных рабочих мест
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row justify-between gap-4">
-          <div className="flex gap-2 flex-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Поиск по названию, описанию или исполнителю..."
-                className="pl-8 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Все статусы" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="NEW">Новый</SelectItem>
-                <SelectItem value="IN_PROGRESS">Идёт настройка</SelectItem>
-                <SelectItem value="REVIEW">Готов</SelectItem>
-                <SelectItem value="COMPLETED">Выдан</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={networkTypeFilter} onValueChange={setNetworkTypeFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Все сети" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все сети</SelectItem>
-                <SelectItem value="EMVS">ЕМВС</SelectItem>
-                <SelectItem value="INTERNET">Интернет</SelectItem>
-                <SelectItem value="ASZI">АСЗИ</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="show-archived"
-                checked={showArchived}
-                onCheckedChange={setShowArchived}
-              />
-              <Label htmlFor="show-archived">
-                {showArchived ? "Показать активные" : "Показать архивные"}
-              </Label>
-            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="show-archived"
+                  checked={showArchived}
+                  onCheckedChange={setShowArchived}
+                />
+                <Label htmlFor="show-archived" className="text-sm">
+                  {showArchived ? "Показать активные" : "Показать архивные"}
+                </Label>
+              </div>
 
-            {!showArchived && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="gap-1">
-                    <Plus className="h-4 w-4" />
-                    <span>Новая настройка АРМ</span>
-                  </Button>
-                </DialogTrigger>
+              {!showArchived && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="gap-1 w-full sm:w-auto">
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline">Новая настройка АРМ</span>
+                      <span className="sm:hidden">Добавить</span>
+                    </Button>
+                  </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Создать новую настройку АРМ</DialogTitle>
@@ -1296,8 +1302,9 @@ export function TaskList() {
           </div>
         </div>
 
-                 <div className="rounded-md border overflow-x-auto">
-           <Table className="min-w-[1000px]">
+        {/* Таблица задач */}
+                <div className="rounded-md border overflow-x-auto">
+          <Table className="min-w-[800px] lg:min-w-[1000px]">
                          <TableHeader>
                <TableRow>
                  <TableHead className="w-[80px]">#</TableHead>
@@ -1587,6 +1594,7 @@ export function TaskList() {
           </Table>
         </div>
       </div>
+    </div>
     </TooltipProvider>
   )
 }
