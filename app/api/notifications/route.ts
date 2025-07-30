@@ -33,12 +33,21 @@ export async function GET(request: NextRequest) {
       where: {
         userId: userId,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
+      select: {
+        id: true,
+        type: true,
+        read: true,
+        createdAt: true,
+        eventId: true,
+        taskId: true,
+        messageId: true,
+        announcementId: true,
         event: {
-          include: {
+          select: {
+            id: true,
+            title: true,
+            date: true,
+            startTime: true,
             creator: {
               select: {
                 id: true,
@@ -48,7 +57,10 @@ export async function GET(request: NextRequest) {
           },
         },
         task: {
-          include: {
+          select: {
+            id: true,
+            title: true,
+            dueDate: true,
             creator: {
               select: {
                 id: true,
@@ -58,7 +70,9 @@ export async function GET(request: NextRequest) {
           },
         },
         message: {
-          include: {
+          select: {
+            id: true,
+            content: true,
             sender: {
               select: {
                 id: true,
@@ -68,7 +82,9 @@ export async function GET(request: NextRequest) {
           },
         },
         announcement: {
-          include: {
+          select: {
+            id: true,
+            title: true,
             author: {
               select: {
                 id: true,
@@ -78,6 +94,10 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 50, // Ограничиваем количество уведомлений для производительности
     })
 
     // Преобразуем уведомления в формат, который будет отправлен клиенту

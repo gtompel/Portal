@@ -52,7 +52,12 @@ export async function GET(request: NextRequest) {
 
     const messages = await prisma.message.findMany({
       where: whereClause,
-      include: {
+      select: {
+        id: true,
+        content: true,
+        read: true,
+        createdAt: true,
+        updatedAt: true,
         sender: {
           select: {
             id: true,
@@ -69,11 +74,19 @@ export async function GET(request: NextRequest) {
             initials: true,
           },
         },
-        attachments: true,
+        attachments: {
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            type: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "asc",
       },
+      take: 100, // Ограничиваем количество сообщений для производительности
     })
 
     return NextResponse.json(messages)

@@ -74,7 +74,17 @@ export async function GET(request: NextRequest) {
 
     const tasks = await prisma.task.findMany({
       where: whereClause,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        priority: true,
+        networkType: true,
+        dueDate: true,
+        taskNumber: true,
+        createdAt: true,
+        updatedAt: true,
         assignee: {
           select: {
             id: true,
@@ -93,6 +103,14 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: "desc",
       },
+      take: 100, // Ограничиваем количество задач для производительности
+      // Добавляем кэширование для повторяющихся запросов
+      ...(process.env.NODE_ENV === 'production' && {
+        cacheStrategy: {
+          swr: 60, // Stale-while-revalidating для 60 секунд
+          ttl: 60, // Кэшируем результаты на 60 секунд
+        },
+      }),
     });
 
     // Кэшируем результат на 1 минуту

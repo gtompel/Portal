@@ -15,7 +15,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   try {
     const message = await prisma.message.findUnique({
       where: { id: params.id },
-      include: {
+      select: {
+        id: true,
+        content: true,
+        read: true,
+        createdAt: true,
+        updatedAt: true,
         sender: {
           select: {
             id: true,
@@ -32,7 +37,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             initials: true,
           },
         },
-        attachments: true,
+        attachments: {
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            type: true,
+          },
+        },
       },
     })
 
@@ -80,7 +92,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const updatedMessage = await prisma.message.update({
       where: { id: params.id },
       data: updateData,
-      include: {
+      select: {
+        id: true,
+        content: true,
+        read: true,
+        createdAt: true,
+        updatedAt: true,
         sender: {
           select: {
             id: true,
@@ -97,7 +114,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             initials: true,
           },
         },
-        attachments: true,
+        attachments: {
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            type: true,
+          },
+        },
       },
     })
 

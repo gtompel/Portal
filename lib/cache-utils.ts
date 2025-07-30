@@ -34,3 +34,48 @@ export async function clearServerCache(pattern: string): Promise<void> {
     console.error('Error clearing server cache:', error)
   }
 } 
+
+// Утилита для кэширования запросов
+const cache = new Map<string, { data: any; timestamp: number; ttl: number }>()
+
+export function getCachedQuery<T>(
+  key: string,
+  queryFn: () => Promise<T>,
+  ttl: number = 60000 // 60 секунд по умолчанию
+): Promise<T> {
+  const cached = cache.get(key)
+  const now = Date.now()
+
+  // Если есть кэш и он не истек
+  if (cached && (now - cached.timestamp) < cached.ttl) {
+    return Promise.resolve(cached.data)
+  }
+
+  // Выполняем запрос и кэшируем результат
+  return queryFn().then(data => {
+    cache.set(key, {
+      data,
+      timestamp: now,
+      ttl
+    })
+    return data
+  })
+}
+
+export function clearCache(pattern?: string) {
+  if (pattern) {
+    // Удаляем записи по паттерну
+    for (const key of cache.keys()) {
+      if (key.includes(pattern)) {
+        cache.delete(key)
+      }
+    }
+  } else {
+    // Очищаем весь кэш
+    cache.clear()
+  }
+}
+
+export function generateCacheKey(operation: string, params: any): string {
+  return `${operation}:${JSON.stringify(params)}`
+} 

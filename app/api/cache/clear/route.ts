@@ -1,7 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
-import { cache } from "@/lib/cache"
+import { clearCache } from "@/lib/cache-utils"
 
+// POST /api/cache/clear - Очистить кэш
 export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ 
@@ -14,24 +15,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { pattern } = body
+    const pattern = body.pattern // Опциональный паттерн для частичной очистки
 
-    if (pattern) {
-      // Очищаем кэш по паттерну
-      const keys = Array.from(cache['cache'].keys())
-      const matchingKeys = keys.filter(key => key.includes(pattern))
-      matchingKeys.forEach(key => cache.delete(key))
-      
-      return NextResponse.json({ 
-        message: `Cleared ${matchingKeys.length} cache entries matching pattern: ${pattern}` 
-      })
-    } else {
-      // Очищаем весь кэш
-      cache.clear()
-      return NextResponse.json({ message: "All cache cleared" })
-    }
+    clearCache(pattern)
+
+    return NextResponse.json({ 
+      message: pattern ? `Кэш очищен для паттерна: ${pattern}` : "Весь кэш очищен" 
+    })
   } catch (error) {
-    console.error("Error clearing cache:", error)
-    return NextResponse.json({ error: "Error clearing cache" }, { status: 500 })
+    console.error("Ошибка при очистке кэша:", error)
+    return NextResponse.json({ error: "Ошибка при очистке кэша" }, { status: 500 })
   }
 } 

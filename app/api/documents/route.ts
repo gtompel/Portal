@@ -46,7 +46,15 @@ export async function GET(request: NextRequest) {
 
     const documents = await prisma.document.findMany({
       where: whereClause,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        description: true,
+        url: true,
+        size: true,
+        createdAt: true,
+        updatedAt: true,
         creator: {
           select: {
             id: true,
@@ -59,6 +67,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         updatedAt: "desc",
       },
+      take: 50, // Ограничиваем количество документов для производительности
     })
 
     return NextResponse.json(documents)

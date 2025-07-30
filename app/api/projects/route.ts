@@ -42,9 +42,19 @@ export async function GET(request: NextRequest) {
 
     const projects = await prisma.project.findMany({
       where: whereClause,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        createdAt: true,
+        updatedAt: true,
         members: {
-          include: {
+          select: {
+            id: true,
+            role: true,
             user: {
               select: {
                 id: true,
@@ -60,6 +70,14 @@ export async function GET(request: NextRequest) {
       orderBy: {
         updatedAt: "desc",
       },
+      take: 50, // Ограничиваем количество проектов для производительности
+      // Добавляем кэширование для повторяющихся запросов
+      ...(process.env.NODE_ENV === 'production' && {
+        cacheStrategy: {
+          swr: 120, // Stale-while-revalidating для 2 минут
+          ttl: 120, // Кэшируем результаты на 2 минуты
+        },
+      }),
     })
 
     return NextResponse.json(projects)

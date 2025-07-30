@@ -64,7 +64,17 @@ export async function GET(request: NextRequest) {
 
     const events = await prisma.event.findMany({
       where: whereClause,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        type: true,
+        createdAt: true,
+        updatedAt: true,
         creator: {
           select: {
             id: true,
@@ -74,7 +84,9 @@ export async function GET(request: NextRequest) {
           },
         },
         participants: {
-          include: {
+          select: {
+            id: true,
+            status: true,
             user: {
               select: {
                 id: true,
@@ -89,6 +101,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         date: "asc",
       },
+      take: 50, // Ограничиваем количество событий для производительности
     })
 
     return NextResponse.json(events)

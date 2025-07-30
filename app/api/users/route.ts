@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         name: "asc",
       },
+      take: 100, // Ограничиваем количество пользователей для производительности
     })
 
     // Кэшируем результат на 2 минуты

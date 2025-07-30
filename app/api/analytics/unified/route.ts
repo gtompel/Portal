@@ -62,7 +62,14 @@ export async function GET(request: NextRequest) {
         where: {
           createdAt: { gte: startDate }
         },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          networkType: true,
+          dueDate: true,
+          createdAt: true,
           assignee: {
             select: {
               id: true,
@@ -74,12 +81,48 @@ export async function GET(request: NextRequest) {
         }
       }),
       // Все документы (без фильтра по дате)
-      prisma.document.findMany(),
+      prisma.document.findMany({
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        take: 100, // Ограничиваем количество документов для аналитики
+        // Добавляем кэширование для аналитических запросов
+        ...(process.env.NODE_ENV === 'production' && {
+          cacheStrategy: {
+            swr: 300, // Stale-while-revalidating для 5 минут
+            ttl: 300, // Кэшируем результаты на 5 минут
+          },
+        }),
+      }),
       // Все объявления за период
       prisma.announcement.findMany({
         where: {
           createdAt: { gte: startDate }
-        }
+        },
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          createdAt: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        take: 100, // Ограничиваем количество результатов для аналитики
+        // Добавляем кэширование для аналитических запросов
+        ...(process.env.NODE_ENV === 'production' && {
+          cacheStrategy: {
+            swr: 300, // Stale-while-revalidating для 5 минут
+            ttl: 300, // Кэшируем результаты на 5 минут
+          },
+        }),
       }),
       // Все пользователи
       prisma.user.findMany({
@@ -87,8 +130,11 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           avatar: true,
-          initials: true
-        }
+          initials: true,
+          position: true,
+          department: true,
+        },
+        take: 1000, // Ограничиваем количество пользователей для аналитики
       }),
       // Статистика по задачам
       prisma.task.groupBy({
@@ -141,7 +187,12 @@ export async function GET(request: NextRequest) {
           dueDate: { lt: currentDate },
           dueDate: { not: null }
         },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
           assignee: {
             select: {
               id: true,
@@ -161,7 +212,12 @@ export async function GET(request: NextRequest) {
             lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Следующие 7 дней
           }
         },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
           assignee: {
             select: {
               id: true,

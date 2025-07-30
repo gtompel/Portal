@@ -7,12 +7,15 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['warn', 'error']
 })
 
-// Добавляем Prisma Optimize только в продакшене для избежания проблем с OpenTelemetry в разработке
-if (process.env.NODE_ENV === 'production' && process.env.OPTIMIZE_API_KEY) {
+// Добавляем Prisma Optimize только в режиме разработки для избежания проблем с OpenTelemetry
+if (process.env.NODE_ENV === 'development' && process.env.OPTIMIZE_API_KEY) {
   import('@prisma/extension-optimize').then(({ withOptimize }) => {
-    prisma.$extends(
+    const extendedPrisma = prisma.$extends(
       withOptimize({ apiKey: process.env.OPTIMIZE_API_KEY! })
     )
+    // Присваиваем методы расширенного клиента
+    Object.setPrototypeOf(prisma, Object.getPrototypeOf(extendedPrisma))
+    Object.assign(prisma, extendedPrisma)
   })
 }
 

@@ -29,7 +29,12 @@ export async function GET(
         announcementId,
         parentId: null, // Только родительские комментарии
       },
-      include: {
+      select: {
+        id: true,
+        content: true,
+        likesCount: true,
+        createdAt: true,
+        updatedAt: true,
         author: {
           select: {
             id: true,
@@ -39,7 +44,11 @@ export async function GET(
           },
         },
         replies: {
-          include: {
+          select: {
+            id: true,
+            content: true,
+            likesCount: true,
+            createdAt: true,
             author: {
               select: {
                 id: true,
@@ -52,11 +61,13 @@ export async function GET(
           orderBy: {
             createdAt: "asc",
           },
+          take: 50, // Ограничиваем количество ответов
         },
       },
       orderBy: {
         createdAt: "desc",
       },
+      take: 50, // Ограничиваем количество комментариев для производительности
     })
 
     return NextResponse.json(comments)
