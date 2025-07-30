@@ -173,13 +173,38 @@ export function EmployeeProfile({ id }: { id: string }) {
         }
 
         const data = await response.json()
-        setEmployeeData(data)
 
-        // Устанавливаем значение биографии в форму
-        bioForm.setValue("bio", data.bio || "")
-      } catch (err) {
-       // console.error("Ошибка при загрузке данных сотрудника:", err)
+        // Преобразуем данные в нужный формат
+        const formattedEmployee: EmployeeDetails = {
+          id: data.id,
+          name: data.name,
+          position: data.position,
+          department: data.department,
+          email: data.email,
+          phone: data.phone,
+          avatar: data.avatar,
+          initials: data.initials || getInitials(data.name),
+          status: data.status,
+          location: data.location,
+          hireDate: data.hireDate,
+          birthday: data.birthday,
+          manager: data.manager,
+          bio: data.bio,
+          skills: data.skills || [],
+          education: data.education || [],
+          experience: data.experience || [],
+          projects: data.projects || [],
+        }
+
+        setEmployeeData(formattedEmployee)
+      } catch (error) {
+        console.error("Ошибка при загрузке данных сотрудника:", error)
         setError("Не удалось загрузить данные сотрудника")
+        toast({
+          title: "Ошибка",
+          description: "Не удалось загрузить профиль сотрудника",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }

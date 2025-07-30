@@ -91,7 +91,6 @@ export function RecentDocuments() {
   const fetchDocuments = async () => {
     try {
       setIsLoading(true)
-
       const response = await fetch("/api/documents")
 
       if (!response.ok) {
@@ -106,8 +105,8 @@ export function RecentDocuments() {
         name: item.name,
         type: item.type,
         owner: {
-          id: item.creator?.id || "unknown",
-          name: item.creator?.name || "Неизвестный пользователь",
+          id: item.creator.id,
+          name: item.creator.name,
         },
         updatedAt: item.updatedAt,
         size: item.size,
@@ -117,8 +116,13 @@ export function RecentDocuments() {
       setDocuments(formattedDocuments)
       setFilteredDocuments(formattedDocuments)
     } catch (err) {
-      //console.error("Ошибка при загрузке документов:", err)
+      console.error("Ошибка при загрузке документов:", err)
       setError("Не удалось загрузить документы")
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить список документов",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }

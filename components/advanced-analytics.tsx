@@ -24,6 +24,7 @@ import {
 import { Download, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/hooks/use-toast"
 
 // Типы данных для аналитики
 type AnalyticsData = {
@@ -55,6 +56,7 @@ type AnalyticsData = {
 }
 
 export function AdvancedAnalytics() {
+  const { toast } = useToast()
   const [period, setPeriod] = useState("year")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -115,6 +117,11 @@ export function AdvancedAnalytics() {
     } catch (err) {
       console.error("Ошибка при загрузке данных аналитики:", err)
       setError("Не удалось загрузить данные аналитики")
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить данные аналитики",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -128,6 +135,11 @@ export function AdvancedAnalytics() {
 
       if (!response.ok) {
         console.warn("Не удалось загрузить данные о проектах, используем данные о задачах")
+        toast({
+          title: "Предупреждение",
+          description: "Не удалось загрузить данные о проектах",
+          variant: "destructive",
+        })
         return
       }
 
@@ -161,8 +173,13 @@ export function AdvancedAnalytics() {
           projectStatusData,
         })
       }
-    } catch (err) {
-      console.error("Ошибка при загрузке данных о проектах:", err)
+    } catch (error) {
+      console.error("Ошибка при загрузке данных о проектах:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить данные о проектах",
+        variant: "destructive",
+      })
     }
   }
 

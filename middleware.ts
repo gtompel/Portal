@@ -98,6 +98,16 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
     
+    // Для upload API всегда разрешаем CORS
+    if (pathname === '/api/upload') {
+      const response = NextResponse.next()
+      response.headers.set('Access-Control-Allow-Origin', '*')
+      response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+      response.headers.set('Access-Control-Max-Age', '86400')
+      return response
+    }
+    
     const response = NextResponse.next()
     
     // Добавляем CORS для всех API роутов

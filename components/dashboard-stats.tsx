@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/hooks/use-toast"
 
 type DashboardStats = {
   tasks: {
@@ -22,6 +23,7 @@ type DashboardStats = {
 }
 
 export function DashboardStats() {
+  const { toast } = useToast()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,11 +45,17 @@ export function DashboardStats() {
       const data = await response.json()
       setStats(data)
     } catch (err) {
+      console.error("Ошибка при загрузке статистики:", err)
       setError("Не удалось загрузить статистику")
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить статистику",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     fetchStats()

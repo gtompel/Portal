@@ -200,6 +200,10 @@ export function MessageSystem() {
       const sentMessage = await response.json()
       setMessages((prev) => [...prev, sentMessage])
       setNewMessage("")
+      toast({
+        title: "Успешно",
+        description: "Сообщение отправлено",
+      })
     } catch (err) {
      // console.error("Ошибка отправки сообщения:", err)
       toast({

@@ -146,8 +146,13 @@ export function ProjectDetails({ id }: { id: string }) {
       const data = await response.json()
       setProject(data)
     } catch (err) {
-      //console.error("Ошибка при загрузке данных проекта:", err)
+      console.error("Ошибка при загрузке данных проекта:", err)
       setError("Не удалось загрузить данные проекта")
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить данные проекта",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -164,7 +169,12 @@ export function ProjectDetails({ id }: { id: string }) {
       const data = await response.json()
       setUsers(data)
     } catch (err) {
-      //console.error("Ошибка при загрузке пользователей:", err)
+      console.error("Ошибка при загрузке пользователей:", err)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить список пользователей",
+        variant: "destructive",
+      })
     }
   }
 

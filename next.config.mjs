@@ -21,6 +21,7 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+
   // Разрешаем cross-origin запросы в разработке
   async headers() {
     return [

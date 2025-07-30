@@ -24,6 +24,8 @@ Avatar.displayName = AvatarPrimitive.Root.displayName
 interface AvatarImageProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image> {
   showModal?: boolean
   fallbackSrc?: string
+  src?: string
+  alt?: string
 }
 
 const AvatarImage = React.forwardRef<

@@ -136,9 +136,9 @@ model Task {
   priority    TaskPriority @default(LOW)
   networkType NetworkType @default(EMVS)
   dueDate     DateTime?
-  assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
   assigneeId  String?
-  creator     User      @relation("CreatedTasks", fields: [creatorId], references: [id])
+  creator     User      @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: Cascade)
   creatorId   String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -185,7 +185,7 @@ model Document {
   description String?
   url         String
   size        String
-  creator     User     @relation("CreatedDocuments", fields: [creatorId], references: [id])
+  creator     User     @relation("CreatedDocuments", fields: [creatorId], references: [id], onDelete: Cascade)
   creatorId   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -209,7 +209,7 @@ model Event {
   endTime      String
   location     String?
   type         EventType @default(MEETING)
-  creator      User     @relation("CreatedEvents", fields: [creatorId], references: [id])
+  creator      User     @relation("CreatedEvents", fields: [creatorId], references: [id], onDelete: Cascade)
   creatorId    String
   participants EventParticipant[]
   createdAt    DateTime @default(now())
@@ -247,9 +247,9 @@ enum ParticipantStatus {
 model Message {
   id          String   @id @default(cuid())
   content     String
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   senderId    String
-  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   receiverId  String
   read        Boolean  @default(false)
   attachments MessageAttachment[]
@@ -275,7 +275,7 @@ model Announcement {
   title     String
   content   String
   category  AnnouncementCategory @default(NEWS)
-  author    User     @relation(fields: [authorId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId  String
   likes     Int      @default(0)
   comments  Int      @default(0)

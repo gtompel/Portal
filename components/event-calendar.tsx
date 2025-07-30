@@ -119,16 +119,11 @@ export function EventCalendar() {
 
   const fetchEvents = async () => {
     try {
-      setIsLoading(true)
       const response = await fetch("/api/events")
-
       if (!response.ok) {
         throw new Error("Не удалось загрузить события")
       }
-
       const data = await response.json()
-
-      // Преобразуем данные в нужный формат
       const formattedEvents = data.map((item: any) => ({
         id: item.id,
         title: item.title,
@@ -139,70 +134,69 @@ export function EventCalendar() {
         location: item.location || "",
         type: item.type,
         participants: item.participants || [],
-        creator: item.creator || {
-          id: "unknown",
-          name: "Неизвестный пользователь",
-          initials: "НП",
+        creator: {
+          id: item.creator.id,
+          name: item.creator.name,
+          initials: getInitials(item.creator.name),
         },
       }))
-
       setEvents(formattedEvents)
-    } catch (err) {
-      //console.error("Ошибка при загрузке событий:", err)
-      setError("Не удалось загрузить события")
-    } finally {
-      setIsLoading(false)
+    } catch (error) {
+      console.error("Ошибка при загрузке событий:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить события",
+        variant: "destructive",
+      })
     }
   }
 
   const fetchTasks = async () => {
     try {
       const response = await fetch("/api/tasks")
-
       if (!response.ok) {
         throw new Error("Не удалось загрузить задачи")
       }
-
       const data = await response.json()
-
-      // Фильтруем задачи с установленной датой выполнения
-      const tasksWithDueDate = data
-        .filter((task: any) => task.dueDate)
-        .map((task: any) => ({
-          id: task.id,
-          title: task.title,
-          description: task.description,
-          status: task.status,
-          priority: task.priority,
-          dueDate: task.dueDate,
-          assignee: task.assignee,
-        }))
-
-      setTasks(tasksWithDueDate)
-    } catch (err) {
-      console.error("Ошибка при загрузке задач:", err)
+      const formattedTasks = data.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        status: item.status,
+        priority: item.priority,
+        dueDate: item.dueDate,
+        assignee: item.assignee,
+      }))
+      setTasks(formattedTasks)
+    } catch (error) {
+      console.error("Ошибка при загрузке задач:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить задачи",
+        variant: "destructive",
+      })
     }
   }
 
   const fetchUsers = async () => {
     try {
       const response = await fetch("/api/users")
-
       if (!response.ok) {
         throw new Error("Не удалось загрузить пользователей")
       }
-
       const data = await response.json()
-
-      // Преобразуем данные в нужный формат
       const formattedUsers = data.map((item: any) => ({
         id: item.id,
         name: item.name,
       }))
-
       setUsers(formattedUsers)
-    } catch (err) {
-     // console.error("Ошибка при загрузке пользователей:", err)
+    } catch (error) {
+      console.error("Ошибка при загрузке пользователей:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить пользователей",
+        variant: "destructive",
+      })
     }
   }
 
@@ -657,7 +651,7 @@ export function EventCalendar() {
                     <FormItem>
                       <FormLabel>Участники</FormLabel>
                       <Select
-                        onValueChange={(value) => {
+                        onValueChange={(value: string) => {
                           const currentValues = field.value || []
                           if (!currentValues.includes(value)) {
                             field.onChange([...currentValues, value])
@@ -1271,7 +1265,7 @@ export function EventCalendar() {
                             <FormItem>
                               <FormLabel>Участники</FormLabel>
                               <Select
-                                onValueChange={(value) => {
+                                onValueChange={(value: string) => {
                                   const currentValues = field.value || []
                                   if (!currentValues.includes(value)) {
                                     field.onChange([...currentValues, value])

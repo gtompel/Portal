@@ -17,6 +17,7 @@ import Link from "next/link"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useToast } from "@/hooks/use-toast"
 
 type Notification = {
   id: string
@@ -32,6 +33,7 @@ type Notification = {
 
 export default function Header() {
   const { data: session } = useSession()
+  const { toast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -50,8 +52,17 @@ export default function Header() {
       await fetch('/api/notifications/migrate', { method: 'POST' })
       // После миграции обновляем список уведомлений
       fetchNotificationData()
+      toast({
+        title: "Успешно",
+        description: "Уведомления синхронизированы",
+      })
     } catch (error) {
       console.error("Ошибка при миграции уведомлений:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось синхронизировать уведомления",
+        variant: "destructive",
+      })
     }
   }
 
@@ -64,9 +75,16 @@ export default function Header() {
         const notifications = await res.json()
         setNotifications(notifications)
         setUnreadCount(notifications.filter((n: Notification) => !n.read).length)
+      } else {
+        throw new Error("Не удалось загрузить уведомления")
       }
     } catch (error) {
       console.error("Ошибка при загрузке уведомлений:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить уведомления",
+        variant: "destructive",
+      })
     }
   }
 
@@ -84,9 +102,20 @@ export default function Header() {
           prev.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
         )
         setUnreadCount((prev) => Math.max(0, prev - 1))
+        toast({
+          title: "Успешно",
+          description: "Уведомление отмечено как прочитанное",
+        })
+      } else {
+        throw new Error("Не удалось отметить уведомление")
       }
     } catch (error) {
       console.error("Ошибка при отметке уведомления как прочитанного:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось отметить уведомление",
+        variant: "destructive",
+      })
     }
   }
 
@@ -101,9 +130,20 @@ export default function Header() {
       if (response.ok) {
         setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
         setUnreadCount(0)
+        toast({
+          title: "Успешно",
+          description: "Все уведомления отмечены как прочитанные",
+        })
+      } else {
+        throw new Error("Не удалось отметить все уведомления")
       }
     } catch (error) {
       console.error("Ошибка при отметке всех уведомлений как прочитанных:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось отметить все уведомления",
+        variant: "destructive",
+      })
     }
   }
 

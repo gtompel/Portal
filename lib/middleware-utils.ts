@@ -30,26 +30,21 @@ export const securityConfig: SecurityConfig = {
 // Проверка, является ли запрос из разрешенного источника
 export function isAllowedOrigin(origin: string): boolean {
   if (!origin) return false
-  console.log('isAllowedOrigin check:', { origin, corsConfigOrigin: corsConfig.origin })
+  
   if (Array.isArray(corsConfig.origin)) {
-    const result = corsConfig.origin.some(o => o === origin)
-    console.log('Array check result:', result)
-    return result
+    return corsConfig.origin.some(o => o === origin)
   }
-  const result = corsConfig.origin === origin
-  console.log('String check result:', result)
-  return result
+  
+  return corsConfig.origin === origin
 }
 
 // Добавление CORS заголовков
 export function addCorsHeaders(response: NextResponse, request: NextRequest): NextResponse {
   const origin = request.headers.get('origin') || ''
-  console.log('CORS: request origin =', origin, 'allowed =', isAllowedOrigin(origin))
 
   if (origin && isAllowedOrigin(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin)
   }
-  // Не ставим Access-Control-Allow-Origin: * если credentials=true и origin пустой!
 
   response.headers.set('Access-Control-Allow-Methods', corsConfig.methods.join(', '))
   response.headers.set('Access-Control-Allow-Headers', corsConfig.headers.join(', '))

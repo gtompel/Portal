@@ -99,7 +99,6 @@ export function EmployeeDirectory() {
   const fetchEmployees = async () => {
     try {
       setIsLoading(true)
-
       const response = await fetch("/api/users")
 
       if (!response.ok) {
@@ -125,8 +124,13 @@ export function EmployeeDirectory() {
       setEmployees(formattedEmployees)
       setFilteredEmployees(formattedEmployees)
     } catch (err) {
-     // console.error("Ошибка при загрузке сотрудников:", err)
+      console.error("Ошибка при загрузке сотрудников:", err)
       setError("Не удалось загрузить сотрудников")
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить список сотрудников",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }

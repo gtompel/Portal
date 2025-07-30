@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Upload, X, User } from "lucide-react"
+import { Upload, X, User, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface AvatarUploadProps {
@@ -41,9 +41,16 @@ export function AvatarUpload({
     const file = event.target.files?.[0]
     if (!file) return
 
+    console.log("📁 Выбран файл:", {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    })
+
     // Валидация типа файла
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
     if (!allowedTypes.includes(file.type)) {
+      console.error("❌ Неподдерживаемый тип файла:", file.type)
       toast({
         title: "Ошибка",
         description: "Неподдерживаемый тип файла. Разрешены только изображения (JPEG, PNG, GIF, WebP)",
@@ -55,6 +62,7 @@ export function AvatarUpload({
     // Валидация размера файла (5MB)
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
+      console.error("❌ Файл слишком большой:", file.size)
       toast({
         title: "Ошибка",
         description: "Файл слишком большой. Максимальный размер: 5MB",
@@ -67,29 +75,64 @@ export function AvatarUpload({
     const reader = new FileReader()
     reader.onload = (e) => {
       setPreviewUrl(e.target?.result as string)
+      console.log("✅ Предварительный просмотр создан")
+    }
+    reader.onerror = (e) => {
+      console.error("❌ Ошибка создания предварительного просмотра:", e)
     }
     reader.readAsDataURL(file)
   }
 
   const handleUpload = async () => {
-    if (!fileInputRef.current?.files?.[0]) return
+    const file = fileInputRef.current?.files?.[0]
+    if (!file) {
+      console.error("❌ Файл не выбран")
+      return
+    }
 
+    console.log("🚀 Начало загрузки файла:", file.name)
     setIsUploading(true)
+    
     const formData = new FormData()
-    formData.append("file", fileInputRef.current.files[0])
+    formData.append("file", file)
 
     try {
+      console.log("📦 FormData создан")
+      console.log("📋 Параметры запроса:", {
+        method: "POST",
+        url: "/api/upload",
+        fileType: file.type,
+        fileSize: file.size
+      })
+
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       })
 
+      console.log("📡 Ответ получен:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Ошибка при загрузке файла")
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+          console.error("❌ Ошибка сервера:", errorData)
+        } catch (parseError) {
+          console.error("❌ Ошибка парсинга ответа:", parseError)
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
+      console.log("✅ Успешный ответ:", result)
       
       if (onAvatarChange) {
         onAvatarChange(result.url)
@@ -105,11 +148,25 @@ export function AvatarUpload({
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
+
     } catch (error) {
-      console.error("Ошибка загрузки:", error)
+      console.error("💥 Ошибка загрузки:", error)
+      
+      let errorMessage = "Не удалось загрузить файл"
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        // Специальная обработка для разных типов ошибок
+        if (error.name === 'AbortError') {
+          errorMessage = "Загрузка была отменена"
+        } else if (errorMessage.includes("Failed to fetch")) {
+          errorMessage = "Ошибка подключения к серверу. Проверьте интернет-соединение и попробуйте снова."
+        }
+      }
+      
       toast({
-        title: "Ошибка",
-        description: error instanceof Error ? error.message : "Не удалось загрузить файл",
+        title: "Ошибка загрузки",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -168,31 +225,47 @@ export function AvatarUpload({
                 <Label>Предварительный просмотр:</Label>
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={previewUrl} alt="Предварительный просмотр" />
-                  <AvatarFallback>
-                    {initials || <User className="h-6 w-6" />}
-                  </AvatarFallback>
+                  <AvatarFallback>Превью</AvatarFallback>
                 </Avatar>
               </div>
             )}
 
-            {/* Загрузка файла */}
+            {/* Выбор файла */}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="avatar-upload">Выберите изображение:</Label>
+              <Label htmlFor="avatar-upload">Выберите файл:</Label>
               <Input
                 id="avatar-upload"
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/gif,image/webp"
                 onChange={handleFileSelect}
-                className="cursor-pointer"
+                disabled={isUploading}
               />
               <p className="text-xs text-muted-foreground">
-                Поддерживаемые форматы: JPEG, PNG, GIF, WebP. Максимальный размер: 5MB
+                Максимальный размер: 5MB. Поддерживаемые форматы: JPEG, PNG, GIF, WebP
               </p>
             </div>
 
             {/* Кнопки действий */}
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2">
+              <Button
+                onClick={handleUpload}
+                disabled={!fileInputRef.current?.files?.[0] || isUploading}
+                className="flex-1"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Загрузка...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Загрузить
+                  </>
+                )}
+              </Button>
+              
               {currentAvatar && (
                 <Button
                   variant="outline"
@@ -203,12 +276,6 @@ export function AvatarUpload({
                   Удалить
                 </Button>
               )}
-              <Button
-                onClick={handleUpload}
-                disabled={!previewUrl || isUploading}
-              >
-                {isUploading ? "Загрузка..." : "Сохранить"}
-              </Button>
             </div>
           </div>
         </DialogContent>

@@ -18,6 +18,7 @@ import {
 } from "recharts"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 type OverviewData = {
   taskData: {
@@ -38,6 +39,7 @@ type OverviewData = {
 }
 
 export function Overview() {
+  const { toast } = useToast()
   const [data, setData] = useState<OverviewData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,10 +63,15 @@ export function Overview() {
     } catch (err) {
       console.error("Ошибка при загрузке данных обзора:", err)
       setError("Не удалось загрузить данные обзора")
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить данные обзора",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     fetchData()

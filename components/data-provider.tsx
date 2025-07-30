@@ -1,6 +1,7 @@
 "use client"
 
-import { createContext, useContext, type ReactNode, useState } from "react"
+import React, { createContext, useContext, useState, ReactNode } from "react"
+import { useToast } from "@/hooks/use-toast"
 
 // Типы данных
 type User = {
@@ -133,13 +134,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     messages: false,
   })
 
-  const [error, setError] = useState({
+  const [error, setError] = useState<{
+    users: string | null
+    tasks: string | null
+    documents: string | null
+    events: string | null
+    messages: string | null
+  }>({
     users: null,
     tasks: null,
     documents: null,
     events: null,
     messages: null,
   })
+
+  const { toast } = useToast()
 
   // Функция для формирования строки запроса из параметров
   const createQueryString = (params?: Record<string, string>) => {
@@ -167,6 +176,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setUsers(data)
     } catch (err) {
       setError((prev) => ({ ...prev, users: err instanceof Error ? err.message : "Неизвестная ошибка" }))
+      toast({
+        title: "Ошибка при загрузке пользователей",
+        description: err instanceof Error ? err.message : "Неизвестная ошибка",
+        variant: "destructive",
+      })
     } finally {
       setLoading((prev) => ({ ...prev, users: false }))
     }
@@ -189,6 +203,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTasks(data)
     } catch (err) {
       setError((prev) => ({ ...prev, tasks: err instanceof Error ? err.message : "Неизвестная ошибка" }))
+      toast({
+        title: "Ошибка при загрузке задач",
+        description: err instanceof Error ? err.message : "Неизвестная ошибка",
+        variant: "destructive",
+      })
     } finally {
       setLoading((prev) => ({ ...prev, tasks: false }))
     }
@@ -211,6 +230,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setDocuments(data)
     } catch (err) {
       setError((prev) => ({ ...prev, documents: err instanceof Error ? err.message : "Неизвестная ошибка" }))
+      toast({
+        title: "Ошибка при загрузке документов",
+        description: err instanceof Error ? err.message : "Неизвестная ошибка",
+        variant: "destructive",
+      })
     } finally {
       setLoading((prev) => ({ ...prev, documents: false }))
     }
@@ -233,6 +257,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setEvents(data)
     } catch (err) {
       setError((prev) => ({ ...prev, events: err instanceof Error ? err.message : "Неизвестная ошибка" }))
+      toast({
+        title: "Ошибка при загрузке событий",
+        description: err instanceof Error ? err.message : "Неизвестная ошибка",
+        variant: "destructive",
+      })
     } finally {
       setLoading((prev) => ({ ...prev, events: false }))
     }
@@ -255,6 +284,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setMessages(data)
     } catch (err) {
       setError((prev) => ({ ...prev, messages: err instanceof Error ? err.message : "Неизвестная ошибка" }))
+      toast({
+        title: "Ошибка при загрузке сообщений",
+        description: err instanceof Error ? err.message : "Неизвестная ошибка",
+        variant: "destructive",
+      })
     } finally {
       setLoading((prev) => ({ ...prev, messages: false }))
     }
