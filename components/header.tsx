@@ -157,14 +157,6 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-      <div className="flex items-center gap-2 md:flex-1">
-        <img 
-          src="/ARM.png" 
-          alt="ГАиОАРМ" 
-          className="h-8 w-8 object-contain"
-        />
-        <span className="font-semibold text-lg hover:opacity-80 transition-opacity cursor-pointer">ГАиОАРМ</span>
-      </div>
       <div className="flex flex-1 items-center justify-end gap-4 md:gap-2 lg:gap-4">
         <ThemeToggle />
         <Popover>

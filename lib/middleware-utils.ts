@@ -76,7 +76,6 @@ const AUTH_CACHE_TTL = 5000 // 5 секунд
 export async function checkAuth(request: NextRequest): Promise<boolean> {
   try {
     if (!process.env.NEXTAUTH_SECRET) {
-      console.error('NEXTAUTH_SECRET is not defined')
       return false
     }
 
@@ -87,64 +86,38 @@ export async function checkAuth(request: NextRequest): Promise<boolean> {
       return cached.result
     }
 
-    // Определяем имя куки на основе NEXTAUTH_URL
-    const url = process.env.NEXTAUTH_URL || '';
-    const host = url.replace(/^https?:\/\//, '').split(':')[0];
-    const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(host);
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    
-    const cookieName = (isIP || isLocalhost) 
-      ? 'next-auth.session-token'
-      : '__Secure-next-auth.session-token';
+    // Пробуем разные имена куки
+    const cookieNames = [
+      'next-auth.session-token',
+      '__Secure-next-auth.session-token'
+    ]
 
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-      cookieName
-    })
+    let token = null
 
-    const result = !!token
-
-    // Кэшируем результат
-    authCache.set(cacheKey, { result, timestamp: Date.now() })
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Auth check for:', request.nextUrl.pathname)
-      console.log('Token exists:', result)
-      console.log('Cookie name used:', cookieName)
-      if (token) {
-        console.log('Token payload:', { id: token.id, email: token.email, role: token.role })
+    for (const cookieName of cookieNames) {
+      try {
+        token = await getToken({
+          req: request,
+          secret: process.env.NEXTAUTH_SECRET,
+          cookieName
+        })
+        if (token) break
+      } catch (error) {
+        continue
       }
     }
 
+    const result = !!token
+    authCache.set(cacheKey, { result, timestamp: Date.now() })
     return result
   } catch (error) {
-    console.error('Auth check error:', error)
     return false
   }
 }
 
 // Логирование запросов
 export function logRequest(request: NextRequest, level: 'info' | 'warn' | 'error' = 'info'): void {
-  if (process.env.NODE_ENV === 'development') {
-    const { method, nextUrl } = request
-    const timestamp = new Date().toISOString()
-    const userAgent = request.headers.get('user-agent') || 'Unknown'
-    const ip = getClientIP(request)
-    
-    const logMessage = `[${timestamp}] ${method} ${nextUrl.pathname} - IP: ${ip} - UA: ${userAgent}`
-    
-    switch (level) {
-      case 'warn':
-        console.warn(logMessage)
-        break
-      case 'error':
-        console.error(logMessage)
-        break
-      default:
-        console.log(logMessage)
-    }
-  }
+  // Отключено для производительности
 }
 
 // Создание ответа с ошибкой
@@ -186,9 +159,8 @@ export function getClientIP(request: NextRequest): string {
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
 export function checkRateLimit(ip: string, limit: number = 1000, windowMs: number = 15 * 60 * 1000): boolean {
-  // Увеличиваем лимиты для локальной разработки
   const actualLimit = process.env.NODE_ENV === 'development' ? 10000 : limit
-  const actualWindow = process.env.NODE_ENV === 'development' ? 60 * 1000 : windowMs // 1 минута для dev
+  const actualWindow = process.env.NODE_ENV === 'development' ? 60 * 1000 : windowMs
   
   const now = Date.now()
   const record = rateLimitMap.get(ip)

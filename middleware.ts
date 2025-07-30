@@ -19,6 +19,7 @@ const PUBLIC_ROUTES = [
   '/auth/forgot-password',
   '/auth/reset-password',
   '/api/auth',
+  '/api/auth/reset-password',
   '/favicon.ico',
   '/logo.png',
   '/ARM.png',
@@ -35,6 +36,7 @@ const PUBLIC_API_ROUTES = [
   '/api/auth/error',
   '/api/auth/providers',
   '/api/auth/verify-request',
+  '/api/auth/reset-password',
   '/api/upload',
   '/api/tasks/events', // SSE роут
   '/api/tasks/poll', // Polling роут для Vercel
@@ -63,7 +65,12 @@ function isPublicRoute(pathname: string): boolean {
 
 // Проверка, является ли API роут публичным
 function isPublicApiRoute(pathname: string): boolean {
-  return PUBLIC_API_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
+  try {
+    return PUBLIC_API_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
+  } catch (error) {
+    console.error('Is public API route error:', error)
+    return false
+  }
 }
 
 // Проверка, является ли роут защищенным
@@ -73,9 +80,6 @@ function isProtectedRoute(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
-  // Логирование запросов
-  logRequest(request)
   
   // Rate limiting только для не-auth роутов
   if (!pathname.startsWith('/api/auth')) {
@@ -131,6 +135,17 @@ export async function middleware(request: NextRequest) {
     if (isPublicRoute(pathname)) {
       const response = NextResponse.next()
       return addSecurityHeaders(response)
+    }
+    
+    // Обработка главной страницы
+    if (pathname === '/') {
+      const isAuthenticated = await checkAuth(request)
+      
+      if (isAuthenticated) {
+        return createRedirectResponse('/dashboard', request)
+      } else {
+        return createRedirectResponse('/auth/login', request)
+      }
     }
     
     // Проверяем аутентификацию для защищенных роутов

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -87,9 +87,6 @@ export function TaskList() {
     onMessage: (event) => {
       try {
         const data = JSON.parse(event.data)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('SSE event received:', data)
-        }
         
         switch (data.type) {
           case 'task_created':
@@ -220,12 +217,6 @@ export function TaskList() {
   }, [showArchived])
 
   useEffect(() => {
-    if (tasks.length) {
-      filterTasks()
-    }
-  }, [searchTerm, statusFilter, networkTypeFilter, tasks])
-
-  useEffect(() => {
     if (currentTask) {
       // Заполняем форму редактирования данными текущей задачи
       editForm.reset({
@@ -240,7 +231,42 @@ export function TaskList() {
     }
   }, [currentTask, editForm])
 
-  const fetchTasks = async () => {
+  const filterTasks = useCallback(() => {
+    let result = [...tasks]
+
+    if (searchTerm) {
+      result = result.filter(
+        (task) =>
+          task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (task.assignee?.name && task.assignee.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          false,
+      )
+    }
+
+    if (statusFilter !== "all") {
+      result = result.filter((task) => task.status === statusFilter)
+    }
+
+    if (networkTypeFilter !== "all") {
+      result = result.filter((task) => task.networkType === networkTypeFilter)
+    }
+
+    setFilteredTasks(result)
+  }, [tasks, searchTerm, statusFilter, networkTypeFilter])
+
+  // useEffect для фильтрации с дебаунсингом
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (tasks.length) {
+        filterTasks()
+      }
+    }, 300) // Дебаунсинг 300мс
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, statusFilter, networkTypeFilter, tasks, filterTasks])
+
+  const fetchTasks = useCallback(async () => {
     try {
       setIsLoading(true)
 
@@ -280,7 +306,7 @@ export function TaskList() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [showArchived])
 
   const fetchUsers = async () => {
     try {
@@ -309,30 +335,6 @@ export function TaskList() {
     }
   }
 
-  const filterTasks = () => {
-    let result = [...tasks]
-
-    if (searchTerm) {
-      result = result.filter(
-        (task) =>
-          task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (task.assignee?.name && task.assignee.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          false,
-      )
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((task) => task.status === statusFilter)
-    }
-
-    if (networkTypeFilter !== "all") {
-      result = result.filter((task) => task.networkType === networkTypeFilter)
-    }
-
-    setFilteredTasks(result)
-  }
-
   const getStatusColor = (status: Task["status"]) => {
     switch (status) {
       case "NEW":
@@ -350,12 +352,12 @@ export function TaskList() {
 
   const getPriorityColor = (priority: Task["priority"]) => {
     switch (priority) {
+      case "HIGH":
+        return "bg-blue-100 text-blue-800"
+      case "MEDIUM":
+        return "bg-gray-100 text-gray-800"
       case "LOW":
         return "bg-green-100 text-green-800"
-      case "MEDIUM":
-        return "bg-yellow-100 text-yellow-800"
-      case "HIGH":
-        return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -378,12 +380,12 @@ export function TaskList() {
 
   const getPriorityText = (priority: Task["priority"]) => {
     switch (priority) {
-      case "LOW":
-        return "Низкий"
-      case "MEDIUM":
-        return "Средний"
       case "HIGH":
-        return "Высокий"
+        return "СЗ"
+      case "MEDIUM":
+        return "Без СЗ"
+      case "LOW":
+        return "Поручение"
       default:
         return priority
     }
@@ -864,17 +866,22 @@ export function TaskList() {
     <TooltipProvider>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold">
-              {showArchived ? "Архив настроек АРМ" : "Настройка АРМ"}
-            </h2>
-            {/* Индикатор SSE подключения */}
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${isSSEConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-xs text-muted-foreground">
-                {isSSEConnected ? 'Real-time' : 'Offline'}
-              </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold">
+                {showArchived ? "Архив настроек АРМ" : "Настройка АРМ"}
+              </h2>
+              {/* Индикатор SSE подключения */}
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${isSSEConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-xs text-muted-foreground">
+                  {isSSEConnected ? 'Real-time' : 'Offline'}
+                </span>
+              </div>
             </div>
+            <p className="text-muted-foreground">
+              Создавайте, назначайте и отслеживайте настройки автоматизированных рабочих мест
+            </p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -986,9 +993,9 @@ export function TaskList() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="LOW">Низкий</SelectItem>
-                              <SelectItem value="MEDIUM">Средний</SelectItem>
-                              <SelectItem value="HIGH">Высокий</SelectItem>
+                              <SelectItem value="HIGH">СЗ</SelectItem>
+                              <SelectItem value="MEDIUM">Без СЗ</SelectItem>
+                              <SelectItem value="LOW">Поручение</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -1174,9 +1181,9 @@ export function TaskList() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="LOW">Низкий</SelectItem>
-                                <SelectItem value="MEDIUM">Средний</SelectItem>
-                                <SelectItem value="HIGH">Высокий</SelectItem>
+                                <SelectItem value="HIGH">СЗ</SelectItem>
+                                <SelectItem value="MEDIUM">Без СЗ</SelectItem>
+                                <SelectItem value="LOW">Поручение</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -1479,25 +1486,25 @@ export function TaskList() {
                           <div className="px-2 py-1.5 text-sm font-semibold">Изменить приоритет</div>
                           <div className="-mx-1 my-1 h-px bg-muted"></div>
                           <DropdownMenuItem 
-                            onClick={() => quickUpdatePriority(task.id, "LOW")}
-                            className={task.priority === "LOW" ? "bg-accent" : ""}
+                            onClick={() => quickUpdatePriority(task.id, "HIGH")}
+                            className={task.priority === "HIGH" ? "bg-accent" : ""}
                           >
-                            <Badge className="mr-2">Низкий</Badge>
-                            {task.priority === "LOW" && <Check className="ml-auto h-4 w-4" />}
+                            <Badge className="mr-2">СЗ</Badge>
+                            {task.priority === "HIGH" && <Check className="ml-auto h-4 w-4" />}
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => quickUpdatePriority(task.id, "MEDIUM")}
                             className={task.priority === "MEDIUM" ? "bg-accent" : ""}
                           >
-                            <Badge className="mr-2">Средний</Badge>
+                            <Badge className="mr-2">Без СЗ</Badge>
                             {task.priority === "MEDIUM" && <Check className="ml-auto h-4 w-4" />}
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => quickUpdatePriority(task.id, "HIGH")}
-                            className={task.priority === "HIGH" ? "bg-accent" : ""}
+                            onClick={() => quickUpdatePriority(task.id, "LOW")}
+                            className={task.priority === "LOW" ? "bg-accent" : ""}
                           >
-                            <Badge className="mr-2">Высокий</Badge>
-                            {task.priority === "HIGH" && <Check className="ml-auto h-4 w-4" />}
+                            <Badge className="mr-2">Поручение</Badge>
+                            {task.priority === "LOW" && <Check className="ml-auto h-4 w-4" />}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

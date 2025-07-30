@@ -368,9 +368,9 @@ export function EventCalendar() {
   const getTaskPriorityColor = (priority: string) => {
     switch (priority) {
       case "HIGH":
-        return "bg-red-100 text-red-800"
+        return "bg-blue-100 text-blue-800"
       case "MEDIUM":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-gray-100 text-gray-800"
       case "LOW":
         return "bg-green-100 text-green-800"
       default:
@@ -381,11 +381,11 @@ export function EventCalendar() {
   const getTaskPriorityText = (priority: string) => {
     switch (priority) {
       case "HIGH":
-        return "высокий"
+        return "СЗ"
       case "MEDIUM":
-        return "средний"
+        return "Без СЗ"
       case "LOW":
-        return "низкий"
+        return "Поручение"
       default:
         return priority.toLowerCase()
     }

@@ -1,107 +1,284 @@
 "use client"
 
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Icons } from "@/components/icons"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { CheckCircle2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email({ message: "Введите корректный email" }),
+// Схема валидации для запроса сброса пароля
+const requestResetSchema = z.object({
+  email: z.string().email("Неверный формат email")
 })
 
-type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
+// Схема валидации для установки нового пароля
+const resetPasswordSchema = z.object({
+  email: z.string().email("Неверный формат email"),
+  newPassword: z.string().min(6, "Пароль должен содержать минимум 6 символов"),
+  confirmPassword: z.string()
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Пароли не совпадают",
+  path: ["confirmPassword"]
+})
+
+type RequestResetForm = z.infer<typeof requestResetSchema>
+type ResetPasswordForm = z.infer<typeof resetPasswordSchema>
 
 export function ForgotPasswordForm() {
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [step, setStep] = useState<"request" | "reset">("request")
+  const [resetToken, setResetToken] = useState("")
+  const [userEmail, setUserEmail] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const form = useForm<ForgotPasswordFormValues>({
-    resolver: zodResolver(forgotPasswordSchema),
+  const requestForm = useForm<RequestResetForm>({
+    resolver: zodResolver(requestResetSchema),
     defaultValues: {
-      email: "",
-    },
+      email: ""
+    }
   })
 
-  async function onSubmit(data: ForgotPasswordFormValues) {
-    setIsLoading(true)
-    setError(null)
+  const resetForm = useForm<ResetPasswordForm>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      email: "",
+      newPassword: "",
+      confirmPassword: ""
+    }
+  })
 
+  const onRequestReset = async (data: RequestResetForm) => {
     try {
-      // В реальном приложении здесь был бы запрос к API
-      // const response = await fetch("/api/auth/forgot-password", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify(data),
-      // })
+      setIsLoading(true)
+      
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      })
 
-      // if (!response.ok) {
-      //   const errorData = await response.json()
-      //   throw new Error(errorData.error || "Произошла ошибка при отправке запроса")
-      // }
+      const result = await response.json()
 
-      // Имитируем успешный ответ
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      setSuccess(true)
-    } catch (err) {
-      console.error("Ошибка при отправке запроса на восстановление пароля:", err)
-      setError(err instanceof Error ? err.message : "Произошла ошибка при отправке запроса")
+      if (response.ok) {
+        setResetToken(result.resetToken)
+        setUserEmail(data.email)
+        setStep("reset")
+        resetForm.setValue("email", data.email)
+        
+        toast({
+          title: "Успешно",
+          description: "Токен для сброса пароля отправлен. Введите новый пароль.",
+        })
+      } else {
+        toast({
+          title: "Ошибка",
+          description: result.error || "Не удалось отправить запрос на сброс пароля",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Ошибка при запросе сброса пароля:", error)
+      toast({
+        title: "Ошибка",
+        description: "Произошла ошибка при отправке запроса",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (success) {
+  const onResetPassword = async (data: ResetPasswordForm) => {
+    try {
+      setIsLoading(true)
+      
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: data.email,
+          newPassword: data.newPassword,
+          resetToken: resetToken
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Успешно",
+          description: "Пароль успешно изменен. Теперь вы можете войти с новым паролем.",
+        })
+        
+        // Перенаправляем на страницу входа
+        window.location.href = "/auth/login"
+      } else {
+        toast({
+          title: "Ошибка",
+          description: result.error || "Не удалось изменить пароль",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Ошибка при сбросе пароля:", error)
+      toast({
+        title: "Ошибка",
+        description: "Произошла ошибка при изменении пароля",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (step === "reset") {
     return (
-      <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
-        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-        <AlertTitle>Инструкции отправлены</AlertTitle>
-        <AlertDescription>
-          Мы отправили инструкции по восстановлению пароля на указанный email. Пожалуйста, проверьте вашу почту.
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        <Form {...resetForm}>
+          <form onSubmit={resetForm.handleSubmit(onResetPassword)} className="space-y-4">
+            <FormField
+              control={resetForm.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      placeholder="email@example.com"
+                      disabled
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={resetForm.control}
+              name="newPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Новый пароль</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Введите новый пароль"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={resetForm.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Подтвердите пароль</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Повторите новый пароль"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Изменить пароль
+            </Button>
+          </form>
+        </Form>
+        
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setStep("request")}
+          disabled={isLoading}
+        >
+          Назад
+        </Button>
+      </div>
     )
   }
 
   return (
-    <div className="grid gap-6">
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="name@example.com" type="email" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
-            Отправить инструкции
-          </Button>
-        </form>
-      </Form>
-    </div>
+    <Form {...requestForm}>
+      <form onSubmit={requestForm.handleSubmit(onRequestReset)} className="space-y-4">
+        <FormField
+          control={requestForm.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  type="email"
+                  placeholder="email@example.com"
+                  disabled={isLoading}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Отправить запрос на сброс пароля
+        </Button>
+      </form>
+    </Form>
   )
 }
 

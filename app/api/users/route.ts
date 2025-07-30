@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
 import { hash } from "bcrypt"
+import { cache } from "@/lib/cache"
 
 // GET /api/users - Получить всех пользователей
 export async function GET(request: NextRequest) {
@@ -17,6 +18,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const department = searchParams.get("department")
     const search = searchParams.get("search")
+
+    // Создаем ключ кэша на основе параметров
+    const cacheKey = `users:${department || 'all'}:${search || 'none'}`
+    
+    // Проверяем кэш
+    const cachedUsers = cache.get(cacheKey)
+    if (cachedUsers) {
+      return NextResponse.json(cachedUsers)
+    }
 
     let whereClause = {}
 
@@ -56,6 +66,9 @@ export async function GET(request: NextRequest) {
         name: "asc",
       },
     })
+
+    // Кэшируем результат на 2 минуты
+    cache.set(cacheKey, users, 120000)
 
     return NextResponse.json(users)
   } catch (error) {

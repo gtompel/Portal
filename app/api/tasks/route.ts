@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { emitTaskEvent } from "@/lib/events";
+import { cache } from "@/lib/cache";
 
 // GET /api/tasks - Получить все задачи
 export async function GET(request: NextRequest) {
@@ -20,6 +21,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const assigneeId = searchParams.get("assigneeId");
     const showArchived = searchParams.get("showArchived") === "true";
+
+    // Создаем ключ кэша на основе параметров
+    const cacheKey = `tasks:${status || 'all'}:${search || 'none'}:${assigneeId || 'none'}:${showArchived}`;
+    
+    // Проверяем кэш
+    const cachedTasks = cache.get(cacheKey);
+    if (cachedTasks) {
+      return NextResponse.json(cachedTasks);
+    }
 
     let whereClause = {};
 
@@ -84,6 +94,9 @@ export async function GET(request: NextRequest) {
         createdAt: "desc",
       },
     });
+
+    // Кэшируем результат на 1 минуту
+    cache.set(cacheKey, tasks, 60000);
 
     return NextResponse.json(tasks);
   } catch (error) {
@@ -169,6 +182,10 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    // Очищаем кэш задач
+    cache.delete('tasks:all:none:none:false');
+    cache.delete('tasks:all:none:none:true');
 
     // Отправляем событие о создании задачи
     emitTaskEvent('task_created', { 
