@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       prisma.document.findMany({
         select: {
           id: true,
-          title: true,
+          name: true,
           type: true,
           createdAt: true,
           updatedAt: true,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,6 +72,8 @@ export function TaskList() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [networkTypeFilter, setNetworkTypeFilter] = useState<string>("all")
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all")
+  const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [showArchived, setShowArchived] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -81,6 +84,59 @@ export function TaskList() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
   const [isDeletingTask, setIsDeletingTask] = useState(false)
+  
+  // Состояния для сортировки
+  const [sortField, setSortField] = useState<string>("createdAt")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+  const [filtersChanged, setFiltersChanged] = useState(false)
+
+  // Функции для работы с LocalStorage
+  const getStorageKey = (userId: string) => `taskFilters_${userId}`
+  
+  const saveFiltersToStorage = useCallback((userId: string) => {
+    if (!userId) return
+    
+    const filters = {
+      searchTerm,
+      statusFilter,
+      networkTypeFilter,
+      assigneeFilter,
+      priorityFilter,
+      sortField,
+      sortDirection,
+      showArchived
+    }
+    
+    try {
+      localStorage.setItem(getStorageKey(userId), JSON.stringify(filters))
+      setFiltersChanged(false) // Сбрасываем флаг изменений после сохранения
+    } catch (error) {
+      console.warn('Не удалось сохранить настройки фильтров:', error)
+    }
+  }, [searchTerm, statusFilter, networkTypeFilter, assigneeFilter, priorityFilter, sortField, sortDirection, showArchived])
+
+  const loadFiltersFromStorage = useCallback((userId: string) => {
+    if (!userId) return
+    
+    try {
+      const savedFilters = localStorage.getItem(getStorageKey(userId))
+      if (savedFilters) {
+        const filters = JSON.parse(savedFilters)
+        
+        // Применяем сохраненные фильтры
+        setSearchTerm(filters.searchTerm || "")
+        setStatusFilter(filters.statusFilter || "all")
+        setNetworkTypeFilter(filters.networkTypeFilter || "all")
+        setAssigneeFilter(filters.assigneeFilter || "all")
+        setPriorityFilter(filters.priorityFilter || "all")
+        setSortField(filters.sortField || "createdAt")
+        setSortDirection(filters.sortDirection || "desc")
+        setShowArchived(filters.showArchived || false)
+      }
+    } catch (error) {
+      console.warn('Не удалось загрузить настройки фильтров:', error)
+    }
+  }, [])
 
   // SSE для real-time обновлений
   const { isConnected: isSSEConnected } = useSSE('/api/tasks/events', {
@@ -216,6 +272,13 @@ export function TaskList() {
     fetchUsers()
   }, [showArchived])
 
+  // Загружаем сохраненные фильтры при инициализации
+  useEffect(() => {
+    if (session?.user?.id) {
+      loadFiltersFromStorage(session.user.id)
+    }
+  }, [session?.user?.id, loadFiltersFromStorage])
+
   useEffect(() => {
     if (currentTask) {
       // Заполняем форму редактирования данными текущей задачи
@@ -239,7 +302,6 @@ export function TaskList() {
         (task) =>
           task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (task.assignee?.name && task.assignee.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
           false,
       )
     }
@@ -252,8 +314,18 @@ export function TaskList() {
       result = result.filter((task) => task.networkType === networkTypeFilter)
     }
 
-    setFilteredTasks(result)
-  }, [tasks, searchTerm, statusFilter, networkTypeFilter])
+    if (assigneeFilter !== "all") {
+      result = result.filter((task) => task.assignee?.id === assigneeFilter)
+    }
+
+    if (priorityFilter !== "all") {
+      result = result.filter((task) => task.priority === priorityFilter)
+    }
+
+    // Применяем сортировку к отфильтрованным задачам
+    const sortedResult = sortTasks(result)
+    setFilteredTasks(sortedResult)
+  }, [tasks, searchTerm, statusFilter, networkTypeFilter, assigneeFilter, priorityFilter, sortField, sortDirection])
 
   // useEffect для фильтрации с дебаунсингом
   useEffect(() => {
@@ -264,7 +336,26 @@ export function TaskList() {
     }, 300) // Дебаунсинг 300мс
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, statusFilter, networkTypeFilter, tasks, filterTasks])
+  }, [searchTerm, statusFilter, networkTypeFilter, assigneeFilter, priorityFilter, tasks, filterTasks])
+
+  // Автоматически сохраняем фильтры при их изменении
+  useEffect(() => {
+    if (session?.user?.id) {
+      // Дебаунсинг для сохранения (сохраняем через 1 секунду после последнего изменения)
+      const timeoutId = setTimeout(() => {
+        saveFiltersToStorage(session.user.id)
+      }, 1000)
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [searchTerm, statusFilter, networkTypeFilter, assigneeFilter, priorityFilter, sortField, sortDirection, showArchived, session?.user?.id, saveFiltersToStorage])
+
+  // Отслеживаем изменения фильтров
+  useEffect(() => {
+    if (session?.user?.id) {
+      setFiltersChanged(true)
+    }
+  }, [searchTerm, statusFilter, networkTypeFilter, assigneeFilter, priorityFilter, sortField, sortDirection, showArchived, session?.user?.id])
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -279,26 +370,28 @@ export function TaskList() {
       const data = await response.json()
 
       // Преобразуем данные в нужный формат
-      const formattedTasks = data.map((item: any, index: number) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        assignee: item.assignee
-          ? {
-              id: item.assignee.id,
-              name: item.assignee.name,
-              avatar: item.assignee.avatar,
-              initials: item.assignee.initials || getInitials(item.assignee.name),
-            }
-          : null,
-        status: item.status,
-        priority: item.priority,
-        networkType: item.networkType,
-        dueDate: item.dueDate,
-        createdAt: item.createdAt,
-        taskNumber: item.taskNumber,
-        isArchived: item.isArchived || false,
-      }))
+      const formattedTasks = data
+        .map((item: any, index: number) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          assignee: item.assignee
+            ? {
+                id: item.assignee.id,
+                name: item.assignee.name,
+                avatar: item.assignee.avatar,
+                initials: item.assignee.initials || getInitials(item.assignee.name),
+              }
+            : null,
+          status: item.status,
+          priority: item.priority,
+          networkType: item.networkType,
+          dueDate: item.dueDate,
+          createdAt: item.createdAt,
+          taskNumber: item.taskNumber,
+          isArchived: item.isArchived || false,
+        }))
+      
       setTasks(formattedTasks)
       setFilteredTasks(formattedTasks)
     } catch (err) {
@@ -463,6 +556,112 @@ export function TaskList() {
     
     return fullName
   }
+
+  // Функция для правильной нумерации задач
+  const getTaskNumber = (task: Task, index: number) => {
+    // Используем индекс из отсортированного массива
+    return index + 1
+  }
+
+  // Функция для сортировки задач
+  const sortTasks = (tasks: Task[]) => {
+    return [...tasks].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortField) {
+        case "taskNumber":
+          aValue = a.taskNumber || 0
+          bValue = b.taskNumber || 0
+          break
+        case "title":
+          aValue = a.title.toLowerCase()
+          bValue = b.title.toLowerCase()
+          break
+        case "description":
+          aValue = (a.description || "").toLowerCase()
+          bValue = (b.description || "").toLowerCase()
+          break
+        case "assignee":
+          aValue = a.assignee?.name.toLowerCase() || ""
+          bValue = b.assignee?.name.toLowerCase() || ""
+          break
+        case "status":
+          aValue = a.status
+          bValue = b.status
+          break
+        case "priority":
+          aValue = a.priority
+          bValue = b.priority
+          break
+        case "networkType":
+          aValue = a.networkType
+          bValue = b.networkType
+          break
+        case "dueDate":
+          aValue = a.dueDate ? new Date(a.dueDate).getTime() : 0
+          bValue = b.dueDate ? new Date(b.dueDate).getTime() : 0
+          break
+        case "createdAt":
+        default:
+          aValue = new Date(a.createdAt).getTime()
+          bValue = new Date(b.createdAt).getTime()
+          break
+      }
+
+      if (aValue < bValue) {
+        return sortDirection === "asc" ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return sortDirection === "asc" ? 1 : -1
+      }
+      return 0
+    })
+  }
+
+  // Функция для изменения сортировки
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+  }
+
+  // Функция для получения иконки сортировки
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="ml-2 h-4 w-4" />
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="ml-2 h-4 w-4" />
+    ) : (
+      <ArrowDown className="ml-2 h-4 w-4" />
+    )
+  }
+
+  // Функция для сброса фильтров к дефолтным значениям
+  const resetFiltersToDefaults = useCallback(() => {
+    setSearchTerm("")
+    setStatusFilter("all")
+    setNetworkTypeFilter("all")
+    setAssigneeFilter("all")
+    setPriorityFilter("all")
+    setSortField("createdAt")
+    setSortDirection("desc")
+    setShowArchived(false)
+    
+    // Очищаем сохраненные настройки
+    if (session?.user?.id) {
+      localStorage.removeItem(getStorageKey(session.user.id))
+    }
+    
+    toast({
+      title: "Фильтры сброшены",
+      description: "Настройки фильтрации возвращены к значениям по умолчанию",
+    })
+  }, [session?.user?.id])
 
   const createTask = async (data: z.infer<typeof taskSchema>) => {
     if (!session?.user?.id) {
@@ -848,6 +1047,46 @@ export function TaskList() {
     }
   }
 
+  const restoreTask = async (taskId: string) => {
+    try {
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId ? { ...task, isArchived: false } : task
+        )
+      )
+
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          isArchived: false,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Не удалось восстановить задачу")
+      }
+
+      const updatedTask = await response.json();
+      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task));
+
+      toast({
+        title: "Задача восстановлена",
+        description: "Задача успешно восстановлена из архива",
+      })
+    } catch (error) {
+      console.error("Ошибка при восстановлении задачи:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось восстановить задачу",
+        variant: "destructive",
+      })
+      fetchTasks()
+    }
+  }
+
   if (error) {
     return (
       <div className="space-y-4">
@@ -887,67 +1126,121 @@ export function TaskList() {
           </div>
           
           {/* Фильтры и поиск */}
-          <div className="flex flex-col lg:flex-row justify-between gap-4">
-            <div className="flex flex-col sm:flex-row gap-2 flex-1">
+          <div className="flex flex-col gap-4">
+            {/* Строка поиска и кнопки управления */}
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Строка поиска */}
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Поиск по названию, описанию или исполнителю..."
-                  className="pl-8 w-full"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                type="search"
+                placeholder="Поиск..."
+                className="pl-10 pr-10 w-full h-9 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
-                    <SelectValue placeholder="Все статусы" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все статусы</SelectItem>
-                    <SelectItem value="NEW">Новый</SelectItem>
-                    <SelectItem value="IN_PROGRESS">Идёт настройка</SelectItem>
-                    <SelectItem value="REVIEW">Готов</SelectItem>
-                    <SelectItem value="COMPLETED">Выдан</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={networkTypeFilter} onValueChange={setNetworkTypeFilter}>
-                  <SelectTrigger className="w-full sm:w-[160px] lg:w-[180px]">
-                    <SelectValue placeholder="Все сети" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все сети</SelectItem>
-                    <SelectItem value="EMVS">ЕМВС</SelectItem>
-                    <SelectItem value="INTERNET">Интернет</SelectItem>
-                    <SelectItem value="ASZI">АСЗИ</SelectItem>
-                  </SelectContent>
-                </Select>
+              
+              {/* Кнопки управления */}
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-archived"
+                    checked={showArchived}
+                    onCheckedChange={setShowArchived}
+                  />
+                  <Label htmlFor="show-archived" className="text-sm whitespace-nowrap">
+                    {showArchived ? "Активные" : "Архив"}
+                  </Label>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetFiltersToDefaults}
+                  className={`gap-1 h-9 text-sm ${filtersChanged ? 'border-orange-500 text-orange-600' : ''}`}
+                  title={filtersChanged ? 'Есть несохраненные изменения' : 'Сбросить фильтры'}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span className="hidden sm:inline">Сброс</span>
+                  <span className="sm:hidden">Сброс</span>
+                  {filtersChanged && (
+                    <div className="w-2 h-2 bg-orange-500 rounded-full ml-1" />
+                  )}
+                </Button>
               </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="show-archived"
-                  checked={showArchived}
-                  onCheckedChange={setShowArchived}
-                />
-                <Label htmlFor="show-archived" className="text-sm">
-                  {showArchived ? "Показать активные" : "Показать архивные"}
-                </Label>
-              </div>
-
+            
+            {/* Фильтры - в отдельной строке */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full h-9 text-sm">
+                  <SelectValue placeholder="Статус" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все статусы</SelectItem>
+                  <SelectItem value="NEW">Новый</SelectItem>
+                  <SelectItem value="IN_PROGRESS">Идёт настройка</SelectItem>
+                  <SelectItem value="REVIEW">Готов</SelectItem>
+                  <SelectItem value="COMPLETED">Выдан</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={networkTypeFilter} onValueChange={setNetworkTypeFilter}>
+                <SelectTrigger className="w-full h-9 text-sm">
+                  <SelectValue placeholder="Сеть" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все сети</SelectItem>
+                  <SelectItem value="EMVS">ЕМВС</SelectItem>
+                  <SelectItem value="INTERNET">Интернет</SelectItem>
+                  <SelectItem value="ASZI">АСЗИ</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                <SelectTrigger className="w-full h-9 text-sm">
+                  <SelectValue placeholder="Исполнитель" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все исполнители</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-full h-9 text-sm">
+                  <SelectValue placeholder="Приоритет" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все приоритеты</SelectItem>
+                  <SelectItem value="HIGH">СЗ</SelectItem>
+                  <SelectItem value="MEDIUM">Без СЗ</SelectItem>
+                  <SelectItem value="LOW">Поручение</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Кнопка "Новая настройка АРМ" */}
               {!showArchived && (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="gap-1 w-full sm:w-auto">
+                    <Button className="gap-1 w-full h-9 text-sm">
                       <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline">Новая настройка АРМ</span>
-                      <span className="sm:hidden">Добавить</span>
+                      <span className="hidden sm:inline">Новый АРМ</span>
+                      <span className="sm:hidden">АРМ</span>
                     </Button>
                   </DialogTrigger>
-            <DialogContent>
+                  <DialogContent>
               <DialogHeader>
                 <DialogTitle>Создать новую настройку АРМ</DialogTitle>
                 <DialogDescription>
@@ -1109,7 +1402,9 @@ export function TaskList() {
               </Form>
             </DialogContent>
           </Dialog>
-            )}
+                )}
+              </div>
+            </div>
 
             {/* Диалог редактирования задачи */}
             <Dialog open={!!currentTask} onOpenChange={(open: boolean) => !open && setCurrentTask(null)}>
@@ -1307,14 +1602,86 @@ export function TaskList() {
           <Table className="min-w-[800px] lg:min-w-[1000px]">
                          <TableHeader>
                <TableRow>
-                 <TableHead className="w-[80px]">#</TableHead>
-                 <TableHead className="w-[250px]">Название</TableHead>
-                 <TableHead className="w-[200px]">Описание</TableHead>
-                 <TableHead className="w-[140px]">Исполнитель</TableHead>
-                 <TableHead className="w-[120px]">Статус</TableHead>
-                 <TableHead className="w-[100px]">Приоритет</TableHead>
-                 <TableHead className="w-[100px]">Тип сети</TableHead>
-                 <TableHead className="w-[100px]">Срок</TableHead>
+                 <TableHead className="w-[80px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("taskNumber")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     #
+                     {getSortIcon("taskNumber")}
+                   </Button>
+                 </TableHead>
+                 <TableHead className="w-[250px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("title")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     Название
+                     {getSortIcon("title")}
+                   </Button>
+                 </TableHead>
+                 <TableHead className="w-[200px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("description")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     Описание
+                     {getSortIcon("description")}
+                   </Button>
+                 </TableHead>
+                 <TableHead className="w-[140px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("assignee")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     Исполнитель
+                     {getSortIcon("assignee")}
+                   </Button>
+                 </TableHead>
+                 <TableHead className="w-[120px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("status")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     Статус
+                     {getSortIcon("status")}
+                   </Button>
+                 </TableHead>
+                 <TableHead className="w-[100px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("priority")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     Приоритет
+                     {getSortIcon("priority")}
+                   </Button>
+                 </TableHead>
+                 <TableHead className="w-[100px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("networkType")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     Тип сети
+                     {getSortIcon("networkType")}
+                   </Button>
+                 </TableHead>
+                 <TableHead className="w-[100px]">
+                   <Button
+                     variant="ghost"
+                     onClick={() => handleSort("dueDate")}
+                     className="h-auto p-0 font-semibold hover:bg-transparent"
+                   >
+                     Срок
+                     {getSortIcon("dueDate")}
+                   </Button>
+                 </TableHead>
                  <TableHead className="w-[80px]">Действия</TableHead>
                </TableRow>
              </TableHeader>
@@ -1352,9 +1719,9 @@ export function TaskList() {
                    </TableRow>
                  ))
               ) : filteredTasks.length > 0 ? (
-                filteredTasks.map((task) => (
+                filteredTasks.map((task, index) => (
                   <TableRow key={task.id} className={task.isArchived ? "opacity-60 bg-muted/30" : ""}>
-                                       <TableCell className="font-medium">{task.taskNumber}</TableCell>
+                                       <TableCell className="font-medium">{getTaskNumber(task, index)}</TableCell>
                    <TableCell className="font-medium">
                      <Tooltip>
                        <TooltipTrigger asChild>
@@ -1568,10 +1935,15 @@ export function TaskList() {
                             <Edit className="mr-2 h-4 w-4" />
                             <span>Редактировать</span>
                           </DropdownMenuItem>
-                          {!task.isArchived && (
+                          {!task.isArchived ? (
                             <DropdownMenuItem onClick={() => archiveTask(task.id)}>
                               <Archive className="mr-2 h-4 w-4" />
                               <span>Архивировать</span>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => restoreTask(task.id)}>
+                              <Archive className="mr-2 h-4 w-4" />
+                              <span>Восстановить</span>
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem className="text-destructive" onClick={() => deleteTask(task)}>
@@ -1594,7 +1966,6 @@ export function TaskList() {
           </Table>
         </div>
       </div>
-    </div>
     </TooltipProvider>
   )
 }

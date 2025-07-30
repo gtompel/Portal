@@ -54,7 +54,9 @@ export default function LoginForm() {
       }
 
       if (result?.ok) {
-        router.push("/")
+        // Получаем callbackUrl из параметров или используем dashboard по умолчанию
+        const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard"
+        router.push(callbackUrl)
         router.refresh()
       }
     } catch (error) {

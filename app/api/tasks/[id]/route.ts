@@ -90,7 +90,21 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
     if (body.assigneeId !== undefined) {
       updateData.assigneeId = body.assigneeId === "" || body.assigneeId === "not_assigned" ? null : body.assigneeId;
     }
-    if (body.isArchived !== undefined) updateData.isArchived = body.isArchived
+    if (body.isArchived !== undefined) {
+      updateData.isArchived = body.isArchived
+      
+      // Если задача восстанавливается из архива, назначаем новый номер (в конце списка)
+      if (body.isArchived === false) {
+        const existingActiveTasks = await prisma.task.findMany({
+          where: { isArchived: false }
+        });
+        const maxTaskNumber = existingActiveTasks.reduce(
+          (max, task: any) => Math.max(max, task.taskNumber || 0),
+          0
+        );
+        updateData.taskNumber = maxTaskNumber + 1;
+      }
+    }
 
     // Обновляем задачу
     const updatedTask = await prisma.task.update({

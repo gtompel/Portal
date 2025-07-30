@@ -151,12 +151,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    //Получаем текущие задачи для назначения следующего номера
-    const existingTasks = await prisma.task.findMany();
-    const maxTaskNumber = existingTasks.reduce(
+    // Генерируем номер задачи на основе активных задач
+    const existingActiveTasks = await prisma.task.findMany({
+      where: { isArchived: false }
+    });
+    const maxTaskNumber = existingActiveTasks.reduce(
       (max, task: any) => Math.max(max, task.taskNumber || 0),
       0
     );
+    
+    // Новые задачи получают больший номер (создаются в конце списка)
+    const newTaskNumber = maxTaskNumber + 1;
     
     // Создание задачи
     const task = await prisma.task.create({
@@ -169,7 +174,7 @@ export async function POST(request: NextRequest) {
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         assigneeId: body.assigneeId || null,
         creatorId: body.creatorId,
-        taskNumber: maxTaskNumber + 1,
+        taskNumber: newTaskNumber,
       },
       include: {
         assignee: {

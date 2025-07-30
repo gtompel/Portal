@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  addCorsHeaders, 
-  addSecurityHeaders, 
-  checkAuth, 
-  logRequest, 
-  isApiRequest, 
-  isStaticFile,
-  getClientIP,
-  checkRateLimit,
-  createErrorResponse,
-  createRedirectResponse
-} from '@/lib/middleware-utils'
+import { getToken } from 'next-auth/jwt'
 
 // Публичные роуты, которые не требуют аутентификации
 const PUBLIC_ROUTES = [
@@ -38,9 +27,9 @@ const PUBLIC_API_ROUTES = [
   '/api/auth/verify-request',
   '/api/auth/reset-password',
   '/api/upload',
-  '/api/tasks/events', // SSE роут
-  '/api/tasks/poll', // Polling роут для Vercel
-  '/api/tasks/changes', // API для проверки изменений
+  '/api/tasks/events',
+  '/api/tasks/poll',
+  '/api/tasks/changes',
 ]
 
 // Роуты, которые требуют аутентификации
@@ -65,12 +54,7 @@ function isPublicRoute(pathname: string): boolean {
 
 // Проверка, является ли API роут публичным
 function isPublicApiRoute(pathname: string): boolean {
-  try {
-    return PUBLIC_API_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
-  } catch (error) {
-    console.error('Is public API route error:', error)
-    return false
-  }
+  return PUBLIC_API_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
 }
 
 // Проверка, является ли роут защищенным
@@ -78,16 +62,74 @@ function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_ROUTES.some(route => pathname.startsWith(route))
 }
 
+// Проверка, является ли запрос API
+function isApiRequest(pathname: string): boolean {
+  return pathname.startsWith('/api/')
+}
+
+// Проверка аутентификации
+async function checkAuth(request: NextRequest): Promise<boolean> {
+  try {
+    if (!process.env.NEXTAUTH_SECRET) {
+      return false
+    }
+
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+
+    return !!token
+  } catch (error) {
+    return false
+  }
+}
+
+// Создание плавного редиректа
+function createSmoothRedirect(url: string, request: NextRequest): NextResponse {
+  const redirectUrl = new URL(url, request.url)
+  
+  // Добавляем callbackUrl для возврата после авторизации
+  if (url.startsWith('/auth/login')) {
+    redirectUrl.searchParams.set('callbackUrl', request.url)
+  }
+  
+  return NextResponse.redirect(redirectUrl)
+}
+
+// Добавление security заголовков
+function addSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-XSS-Protection', '1; mode=block')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  
+  return response
+}
+
+// Добавление CORS заголовков
+function addCorsHeaders(response: NextResponse, request: NextRequest): NextResponse {
+  const origin = request.headers.get('origin')
+  
+  if (origin && (
+    origin === 'http://localhost:3000' ||
+    origin === 'http://127.0.0.1:3000' ||
+    origin === 'http://172.16.10.245:3000' ||
+    origin === 'https://portal-arm.vercel.app'
+  )) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+  }
+
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+  response.headers.set('Access-Control-Allow-Credentials', 'true')
+  response.headers.set('Access-Control-Max-Age', '86400')
+
+  return response
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
-  // Rate limiting только для не-auth роутов
-  if (!pathname.startsWith('/api/auth')) {
-    const clientIP = getClientIP(request)
-    if (!checkRateLimit(clientIP)) {
-      return createErrorResponse('Too Many Requests', 429)
-    }
-  }
   
   // Обработка OPTIONS запросов для CORS
   if (request.method === 'OPTIONS') {
@@ -97,32 +139,22 @@ export async function middleware(request: NextRequest) {
   
   // Обработка API роутов
   if (isApiRequest(pathname)) {
-    // Для SSE роутов не применяем middleware
-    if (pathname === '/api/tasks/events') {
-      return NextResponse.next()
-    }
-    
-    // Для upload API всегда разрешаем CORS
-    if (pathname === '/api/upload') {
-      const response = NextResponse.next()
-      response.headers.set('Access-Control-Allow-Origin', '*')
-      response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
-      response.headers.set('Access-Control-Max-Age', '86400')
-      return response
-    }
-    
     const response = NextResponse.next()
     
     // Добавляем CORS для всех API роутов
     addCorsHeaders(response, request)
+    
+    // Для SSE и polling роутов не проверяем аутентификацию
+    if (pathname === '/api/tasks/events' || pathname === '/api/tasks/poll') {
+      return response
+    }
     
     // Проверяем аутентификацию только для защищенных API роутов
     if (!isPublicApiRoute(pathname)) {
       const isAuthenticated = await checkAuth(request)
       
       if (!isAuthenticated) {
-        return createErrorResponse('Unauthorized', 401)
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
     }
     
@@ -137,11 +169,15 @@ export async function middleware(request: NextRequest) {
       return addSecurityHeaders(response)
     }
     
-    // Обработка главной страницы - убираем автоматический редирект
+    // Главная страница - редирект на dashboard для авторизованных пользователей
     if (pathname === '/') {
-      // Пропускаем главную страницу без редиректа
-      const response = NextResponse.next()
-      return addSecurityHeaders(response)
+      const isAuthenticated = await checkAuth(request)
+      
+      if (isAuthenticated) {
+        return createSmoothRedirect('/dashboard', request)
+      } else {
+        return createSmoothRedirect('/auth/login', request)
+      }
     }
     
     // Проверяем аутентификацию для защищенных роутов
@@ -149,7 +185,7 @@ export async function middleware(request: NextRequest) {
       const isAuthenticated = await checkAuth(request)
       
       if (!isAuthenticated) {
-        return createRedirectResponse('/auth/login', request)
+        return createSmoothRedirect('/auth/login', request)
       }
     }
     
@@ -165,14 +201,6 @@ export async function middleware(request: NextRequest) {
 // Конфигурация matcher для оптимизации производительности
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (images, etc.)
-     * - _vercel (Vercel internal routes)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|_vercel|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|_vercel|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)',
   ],
 } 
