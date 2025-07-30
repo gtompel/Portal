@@ -137,15 +137,11 @@ export async function middleware(request: NextRequest) {
       return addSecurityHeaders(response)
     }
     
-    // Обработка главной страницы
+    // Обработка главной страницы - убираем автоматический редирект
     if (pathname === '/') {
-      const isAuthenticated = await checkAuth(request)
-      
-      if (isAuthenticated) {
-        return createRedirectResponse('/dashboard', request)
-      } else {
-        return createRedirectResponse('/auth/login', request)
-      }
+      // Пропускаем главную страницу без редиректа
+      const response = NextResponse.next()
+      return addSecurityHeaders(response)
     }
     
     // Проверяем аутентификацию для защищенных роутов

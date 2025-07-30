@@ -1,12 +1,9 @@
-import { AdvancedAnalytics } from "@/components/advanced-analytics"
+import { UnifiedAnalytics } from "@/components/unified-analytics"
 
 export default function AnalyticsPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-3xl font-bold">Расширенная аналитика</h1>
-      <p className="text-muted-foreground">Детальный анализ производительности компании</p>
-
-      <AdvancedAnalytics />
+      <UnifiedAnalytics />
     </div>
   )
 }

@@ -67,16 +67,6 @@ export default function Sidebar() {
       title: "Аналитика",
     },
     {
-      href: "/analytics/tasks",
-      icon: BarChart,
-      title: "Аналитика задач",
-    },
-    {
-      href: "/analytics/projects",
-      icon: BarChart,
-      title: "Аналитика проектов",
-    },
-    {
       href: "/announcements",
       icon: BellRing,
       title: "Объявления",
