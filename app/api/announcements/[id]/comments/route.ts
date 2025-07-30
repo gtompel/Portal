@@ -1,16 +1,18 @@
-import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getToken } from "next-auth/jwt"
 
 // GET /api/announcements/[id]/comments - Получение комментариев к объявлению
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!params?.id) {
+    const { id: announcementId } = await params
+
+    if (!announcementId) {
       return NextResponse.json({ error: "ID объявления не указан" }, { status: 400 })
     }
-
-    const announcementId = params.id
 
     // Проверяем, существует ли объявление
     const announcement = await prisma.announcement.findUnique({
@@ -32,7 +34,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
           select: {
             id: true,
             name: true,
-            image: true,
+            avatar: true,
+            initials: true,
           },
         },
         replies: {
@@ -41,7 +44,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
               select: {
                 id: true,
                 name: true,
-                image: true,
+                avatar: true,
+                initials: true,
               },
             },
           },
@@ -63,19 +67,26 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // POST /api/announcements/[id]/comments - Добавление комментария к объявлению
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 })
     }
 
-    if (!params?.id) {
+    const { id: announcementId } = await params
+
+    if (!announcementId) {
       return NextResponse.json({ error: "ID объявления не указан" }, { status: 400 })
     }
 
-    const announcementId = params.id
     const { content, parentId } = await request.json()
 
     if (!content || content.trim() === "") {
@@ -107,7 +118,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       prisma.comment.create({
         data: {
           content,
-          authorId: session.user.id,
+          authorId: token.sub,
           announcementId,
           parentId,
         },

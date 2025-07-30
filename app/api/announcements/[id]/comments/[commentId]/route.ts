@@ -1,17 +1,18 @@
-import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getToken } from "next-auth/jwt"
 
 // GET /api/announcements/[id]/comments/[commentId] - Получение комментария
-export async function GET(request: Request, { params }: { params: { id: string; commentId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; commentId: string }> }
+) {
   try {
-    if (!params?.id || !params?.commentId) {
+    const { id: announcementId, commentId } = await params
+
+    if (!announcementId || !commentId) {
       return NextResponse.json({ error: "ID объявления или комментария не указан" }, { status: 400 })
     }
-
-    const announcementId = params.id
-    const commentId = params.commentId
 
     // Проверяем, существует ли комментарий
     const comment = await prisma.comment.findUnique({
@@ -24,7 +25,8 @@ export async function GET(request: Request, { params }: { params: { id: string; 
           select: {
             id: true,
             name: true,
-            image: true,
+            avatar: true,
+            initials: true,
           },
         },
         replies: {
@@ -33,7 +35,8 @@ export async function GET(request: Request, { params }: { params: { id: string; 
               select: {
                 id: true,
                 name: true,
-                image: true,
+                avatar: true,
+                initials: true,
               },
             },
           },
@@ -56,20 +59,26 @@ export async function GET(request: Request, { params }: { params: { id: string; 
 }
 
 // PUT /api/announcements/[id]/comments/[commentId] - Обновление комментария
-export async function PUT(request: Request, { params }: { params: { id: string; commentId: string } }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; commentId: string }> }
+) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 })
     }
 
-    if (!params?.id || !params?.commentId) {
+    const { id: announcementId, commentId } = await params
+
+    if (!announcementId || !commentId) {
       return NextResponse.json({ error: "ID объявления или комментария не указан" }, { status: 400 })
     }
 
-    const announcementId = params.id
-    const commentId = params.commentId
     const { content } = await request.json()
 
     if (!content || content.trim() === "") {
@@ -88,7 +97,7 @@ export async function PUT(request: Request, { params }: { params: { id: string; 
       return NextResponse.json({ error: "Комментарий не найден" }, { status: 404 })
     }
 
-    if (comment.authorId !== session.user.id) {
+    if (comment.authorId !== token.sub) {
       return NextResponse.json({ error: "У вас нет прав на редактирование этого комментария" }, { status: 403 })
     }
 
@@ -105,7 +114,8 @@ export async function PUT(request: Request, { params }: { params: { id: string; 
           select: {
             id: true,
             name: true,
-            image: true,
+            avatar: true,
+            initials: true,
           },
         },
       },
@@ -119,20 +129,25 @@ export async function PUT(request: Request, { params }: { params: { id: string; 
 }
 
 // DELETE /api/announcements/[id]/comments/[commentId] - Удаление комментария
-export async function DELETE(request: Request, { params }: { params: { id: string; commentId: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; commentId: string }> }
+) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 })
     }
 
-    if (!params?.id || !params?.commentId) {
+    const { id: announcementId, commentId } = await params
+
+    if (!announcementId || !commentId) {
       return NextResponse.json({ error: "ID объявления или комментария не указан" }, { status: 400 })
     }
-
-    const announcementId = params.id
-    const commentId = params.commentId
 
     // Проверяем, существует ли комментарий и принадлежит ли он текущему пользователю
     const comment = await prisma.comment.findUnique({
@@ -146,7 +161,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       return NextResponse.json({ error: "Комментарий не найден" }, { status: 404 })
     }
 
-    if (comment.authorId !== session.user.id) {
+    if (comment.authorId !== token.sub) {
       return NextResponse.json({ error: "У вас нет прав на удаление этого комментария" }, { status: 403 })
     }
 
@@ -159,12 +174,20 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       })
     }
 
-    // Удаляем комментарий
-    await prisma.comment.delete({
-      where: {
-        id: commentId,
-      },
-    })
+    // Удаляем комментарий и уменьшаем счетчик комментариев в объявлении
+    await prisma.$transaction([
+      prisma.comment.delete({
+        where: {
+          id: commentId,
+        },
+      }),
+      prisma.announcement.update({
+        where: { id: announcementId },
+        data: {
+          comments: { decrement: 1 },
+        },
+      }),
+    ])
 
     return NextResponse.json({ message: "Комментарий успешно удален" })
   } catch (error) {

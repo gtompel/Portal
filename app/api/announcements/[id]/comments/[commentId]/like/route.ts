@@ -1,23 +1,27 @@
-import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getToken } from "next-auth/jwt"
 
 // POST /api/announcements/[id]/comments/[commentId]/like - Лайк комментария
-export async function POST(request: Request, { params }: { params: { id: string; commentId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; commentId: string }> }
+) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 })
     }
 
-    if (!params?.id || !params?.commentId) {
+    const { id: announcementId, commentId } = await params
+
+    if (!announcementId || !commentId) {
       return NextResponse.json({ error: "ID объявления или комментария не указан" }, { status: 400 })
     }
-
-    const announcementId = params.id
-    const commentId = params.commentId
 
     // Проверяем, существует ли комментарий
     const comment = await prisma.comment.findUnique({
@@ -35,7 +39,7 @@ export async function POST(request: Request, { params }: { params: { id: string;
     const existingLike = await prisma.commentLike.findUnique({
       where: {
         userId_commentId: {
-          userId: session.user.id,
+          userId: token.sub,
           commentId,
         },
       },
@@ -45,25 +49,25 @@ export async function POST(request: Request, { params }: { params: { id: string;
       return NextResponse.json({ error: "Вы уже лайкнули этот комментарий" }, { status: 400 })
     }
 
-    // Создаем лайк
-    await prisma.commentLike.create({
-      data: {
-        userId: session.user.id,
-        commentId,
-      },
-    })
-
-    // Обновляем счетчик лайков в комментарии
-    const updatedComment = await prisma.comment.update({
-      where: {
-        id: commentId,
-      },
-      data: {
-        likesCount: {
-          increment: 1,
+    // Создаем лайк и обновляем счетчик лайков в комментарии
+    const [like, updatedComment] = await prisma.$transaction([
+      prisma.commentLike.create({
+        data: {
+          userId: token.sub,
+          commentId,
         },
-      },
-    })
+      }),
+      prisma.comment.update({
+        where: {
+          id: commentId,
+        },
+        data: {
+          likesCount: {
+            increment: 1,
+          },
+        },
+      }),
+    ])
 
     return NextResponse.json({ likesCount: updatedComment.likesCount })
   } catch (error) {
@@ -73,25 +77,31 @@ export async function POST(request: Request, { params }: { params: { id: string;
 }
 
 // DELETE /api/announcements/[id]/comments/[commentId]/like - Удаление лайка комментария
-export async function DELETE(request: Request, { params }: { params: { id: string; commentId: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; commentId: string }> }
+) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    if (!token?.sub) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 })
     }
 
-    if (!params?.id || !params?.commentId) {
+    const { id: announcementId, commentId } = await params
+
+    if (!announcementId || !commentId) {
       return NextResponse.json({ error: "ID объявления или комментария не указан" }, { status: 400 })
     }
-
-    const commentId = params.commentId
 
     // Проверяем, лайкнул ли пользователь этот комментарий
     const existingLike = await prisma.commentLike.findUnique({
       where: {
         userId_commentId: {
-          userId: session.user.id,
+          userId: token.sub,
           commentId,
         },
       },
@@ -101,27 +111,27 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       return NextResponse.json({ error: "Вы не лайкали этот комментарий" }, { status: 400 })
     }
 
-    // Удаляем лайк
-    await prisma.commentLike.delete({
-      where: {
-        userId_commentId: {
-          userId: session.user.id,
-          commentId,
+    // Удаляем лайк и обновляем счетчик лайков в комментарии
+    const [deletedLike, updatedComment] = await prisma.$transaction([
+      prisma.commentLike.delete({
+        where: {
+          userId_commentId: {
+            userId: token.sub,
+            commentId,
+          },
         },
-      },
-    })
-
-    // Обновляем счетчик лайков в комментарии
-    const updatedComment = await prisma.comment.update({
-      where: {
-        id: commentId,
-      },
-      data: {
-        likesCount: {
-          decrement: 1,
+      }),
+      prisma.comment.update({
+        where: {
+          id: commentId,
         },
-      },
-    })
+        data: {
+          likesCount: {
+            decrement: 1,
+          },
+        },
+      }),
+    ])
 
     return NextResponse.json({ likesCount: updatedComment.likesCount })
   } catch (error) {

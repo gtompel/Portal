@@ -11,9 +11,8 @@ export const metadata: Metadata = {
   description: "Просмотр объявления и комментариев",
 }
 
-export default async function AnnouncementPage({ params }: { params: { id: string } }) {
-  // Убедимся, что params.id доступен
-  const announcementId = params.id
+export default async function AnnouncementPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: announcementId } = await params
 
   return (
     <div className="space-y-6">

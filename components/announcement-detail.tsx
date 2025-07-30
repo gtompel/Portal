@@ -94,7 +94,7 @@ export function AnnouncementDetail({ id }: { id: string }) {
       }
 
       // Обновляем количество лайков
-      setAnnouncement((prev) => (prev ? { ...prev, likes: data.likes } : null))
+      setAnnouncement((prev) => (prev ? { ...prev, likes: data.likesCount || data.likes } : null))
     } catch (err: any) {
     //  console.error("Ошибка при постановке лайка:", err)
       toast({

@@ -353,11 +353,11 @@ export function TaskList() {
   const getPriorityColor = (priority: Task["priority"]) => {
     switch (priority) {
       case "HIGH":
-        return "bg-blue-100 text-blue-800"
+        return "bg-green-500 text-white border-green-600"
       case "MEDIUM":
-        return "bg-gray-100 text-gray-800"
+        return "bg-red-500 text-white border-red-600"
       case "LOW":
-        return "bg-green-100 text-green-800"
+        return "bg-yellow-500 text-white border-yellow-600"
       default:
         return "bg-gray-100 text-gray-800"
     }

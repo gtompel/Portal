@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ThumbsUp, MessageSquare, Plus, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import Link from "next/link"
 import {
   Dialog,
   DialogContent,
@@ -188,7 +189,7 @@ export function Announcements() {
 
       // Обновляем количество лайков в списке
       setAnnouncements((prev) =>
-        prev.map((announcement) => (announcement.id === id ? { ...announcement, likes: data.likes } : announcement)),
+        prev.map((announcement) => (announcement.id === id ? { ...announcement, likes: data.likesCount || data.likes } : announcement)),
       )
     } catch (err: any) {
     //  console.error("Ошибка при постановке лайка:", err)
@@ -384,7 +385,11 @@ export function Announcements() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <CardTitle>{announcement.title}</CardTitle>
+                    <CardTitle>
+                      <Link href={`/announcements/${announcement.id}`} className="hover:underline">
+                        {announcement.title}
+                      </Link>
+                    </CardTitle>
                     <CardDescription>{formatDate(announcement.date)}</CardDescription>
                   </div>
                   <Badge variant="outline" className={getCategoryColor(announcement.category)}>
@@ -408,9 +413,11 @@ export function Announcements() {
                     <ThumbsUp className="h-4 w-4" />
                     <span>{announcement.likes}</span>
                   </Button>
-                  <Button variant="ghost" size="sm" className="gap-1">
-                    <MessageSquare className="h-4 w-4" />
-                    <span>{announcement.comments}</span>
+                  <Button variant="ghost" size="sm" className="gap-1" asChild>
+                    <Link href={`/announcements/${announcement.id}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      <span>{announcement.comments}</span>
+                    </Link>
                   </Button>
                 </div>
               </CardFooter>

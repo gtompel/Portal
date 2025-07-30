@@ -49,6 +49,7 @@ model User {
   // Новые связи
   comments      Comment[]
   announcementLikes AnnouncementLike[]
+  commentLikes  CommentLike[]
   announcements Announcement[]
   notifications Notification[] // Связь с уведомлениями
 }
@@ -144,6 +145,7 @@ model Task {
   updatedAt   DateTime  @updatedAt
   isArchived  Boolean   @default(false)
   comments    TaskComment[]
+  commentList Comment[]
   taskNumber Int?
 
   Notification Notification[]
@@ -292,6 +294,7 @@ enum AnnouncementCategory {
   IMPORTANT
   NEWS
   EVENT
+  UPDATE
 }
 
 model Project {
@@ -332,13 +335,30 @@ model Comment {
   content       String
   author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId      String
-  announcement  Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  announcementId String
+  announcement  Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  announcementId String?
+  task          Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId        String?
   parent        Comment?  @relation("CommentToReplies", fields: [parentId], references: [id], onDelete: Cascade)
   parentId      String?
   replies       Comment[] @relation("CommentToReplies")
+  likesCount    Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  // Связи для лайков
+  likes         CommentLike[]
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
 }
 
 model AnnouncementLike {

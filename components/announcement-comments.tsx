@@ -290,16 +290,17 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
 
   const likeComment = async (commentId: string, isReply = false, parentId?: string) => {
     try {
-      // В реальном приложении здесь был бы запрос к API
       const response = await fetch(`/api/announcements/${announcementId}/comments/${commentId}/like`, {
         method: "POST"
       })
+      
       if (!response.ok) {
-        throw new Error("Не удалось поставить лайк")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Не удалось поставить лайк")
       }
 
-      //  Имитируем успешный ответ
-      // await new Promise((resolve) => setTimeout(resolve, 300))
+      const data = await response.json()
+      const newLikesCount = data.likesCount
 
       if (isReply && parentId) {
         // Обновляем лайк для ответа
@@ -309,7 +310,7 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
               return {
                 ...comment,
                 replies: comment.replies.map((reply) =>
-                  reply.id === commentId ? { ...reply, likes: reply.likes + 1 } : reply,
+                  reply.id === commentId ? { ...reply, likes: newLikesCount } : reply,
                 ),
               }
             }
@@ -319,14 +320,13 @@ export function AnnouncementComments({ announcementId }: { announcementId: strin
       } else {
         // Обновляем лайк для комментария
         setComments((prev) =>
-          prev.map((comment) => (comment.id === commentId ? { ...comment, likes: comment.likes + 1 } : comment)),
+          prev.map((comment) => (comment.id === commentId ? { ...comment, likes: newLikesCount } : comment)),
         )
       }
-    } catch (err) {
-      //console.error("Ошибка при добавлении лайка:", err)
+    } catch (err: any) {
       toast({
         title: "Ошибка",
-        description: "Не удалось поставить лайк",
+        description: err.message || "Не удалось поставить лайк",
         variant: "destructive",
       })
     }

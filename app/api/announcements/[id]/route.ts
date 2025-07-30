@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!params?.id) {
+    const { id } = await params
+
+    if (!id) {
       return NextResponse.json({ error: "ID объявления не указан" }, { status: 400 })
     }
-
-    const id = params.id
 
     // Получаем объявление с информацией об авторе
     const announcement = await prisma.announcement.findUnique({
@@ -30,18 +33,22 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     return NextResponse.json(announcement)
   } catch (error) {
-   // console.error("Ошибка при получении объявления:", error)
+    console.error("Ошибка при получении объявления:", error)
     return NextResponse.json({ error: "Ошибка при получении объявления" }, { status: 500 })
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!params?.id) {
+    const { id } = await params
+
+    if (!id) {
       return NextResponse.json({ error: "ID объявления не указан" }, { status: 400 })
     }
 
-    const id = params.id
     const { title, content, category } = await request.json()
 
     // Проверяем, существует ли объявление
@@ -65,18 +72,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     return NextResponse.json(updatedAnnouncement)
   } catch (error) {
-   // console.error("Ошибка при обновлении объявления:", error)
+    console.error("Ошибка при обновлении объявления:", error)
     return NextResponse.json({ error: "Ошибка при обновлении объявления" }, { status: 500 })
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    if (!params?.id) {
+    const { id } = await params
+
+    if (!id) {
       return NextResponse.json({ error: "ID объявления не указан" }, { status: 400 })
     }
-
-    const id = params.id
 
     // Проверяем, существует ли объявление
     const announcement = await prisma.announcement.findUnique({
@@ -96,7 +106,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     return NextResponse.json({ success: true })
   } catch (error) {
-  //  console.error("Ошибка при удалении объявления:", error)
+    console.error("Ошибка при удалении объявления:", error)
     return NextResponse.json({ error: "Ошибка при удалении объявления" }, { status: 500 })
   }
 }
