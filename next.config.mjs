@@ -21,6 +21,9 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  // Оптимизация предзагрузки ресурсов
+  compress: true,
+  poweredByHeader: false,
 
   // Разрешаем cross-origin запросы в разработке
   async headers() {
