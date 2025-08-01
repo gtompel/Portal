@@ -50,7 +50,7 @@ function TaskRowComponent({
     <TableRow className={`${task.isArchived ? "opacity-60 bg-muted/30" : ""} min-h-[60px]`}>
       {/* Номер */}
       <TableCell className="font-medium">
-        {getTaskNumber(task, index)}
+        {getTaskNumber(task)}
       </TableCell>
 
       {/* Название */}

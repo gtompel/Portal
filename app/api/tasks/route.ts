@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        createdAt: "desc",
+        taskNumber: "desc",
       },
       take: 100, // Ограничиваем количество задач для производительности
     });

@@ -558,9 +558,8 @@ export function TaskList() {
   }
 
   // Функция для правильной нумерации задач
-  const getTaskNumber = (task: Task, index: number) => {
-    // Используем индекс из отсортированного массива
-    return index + 1
+  const getTaskNumber = (task: Task) => {
+    return task.taskNumber || 0
   }
 
   // Функция для сортировки задач
@@ -648,7 +647,7 @@ export function TaskList() {
     setNetworkTypeFilter("all")
     setAssigneeFilter("all")
     setPriorityFilter("all")
-    setSortField("createdAt")
+    setSortField("taskNumber")
     setSortDirection("desc")
     setShowArchived(false)
     
@@ -1133,7 +1132,7 @@ export function TaskList() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
-                type="search"
+                type="text"
                 placeholder="Поиск..."
                 className="pl-10 pr-10 w-full h-9 text-sm"
                 value={searchTerm}
@@ -1721,7 +1720,7 @@ export function TaskList() {
               ) : filteredTasks.length > 0 ? (
                 filteredTasks.map((task, index) => (
                   <TableRow key={task.id} className={`${task.isArchived ? "opacity-60 bg-muted/30" : ""} min-h-[60px]`}>
-                                       <TableCell className="font-medium">{getTaskNumber(task, index)}</TableCell>
+                                       <TableCell className="font-medium">{getTaskNumber(task)}</TableCell>
                    <TableCell className="font-medium">
                      <Tooltip>
                        <TooltipTrigger asChild>

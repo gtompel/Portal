@@ -72,7 +72,7 @@ export const DEFAULT_FILTERS = {
   networkTypeFilter: "all", 
   assigneeFilter: "all",
   priorityFilter: "all",
-  sortField: "createdAt",
+  sortField: "taskNumber",
   sortDirection: "desc" as const,
   showArchived: false
 } as const 

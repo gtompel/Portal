@@ -32,7 +32,7 @@ export function TaskListFilters({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            type="search"
+            type="text"
             placeholder="Поиск..."
             className="pl-10 pr-10 w-full h-9 text-sm"
             value={filters.searchTerm}

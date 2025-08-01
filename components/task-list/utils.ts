@@ -61,8 +61,8 @@ export const getNetworkTypeText = (networkType: Task["networkType"]): string => 
 }
 
 // Функция для правильной нумерации задач
-export const getTaskNumber = (task: Task, index: number): number => {
-  return index + 1
+export const getTaskNumber = (task: Task): number => {
+  return task.taskNumber || 0
 }
 
 // Функция для сортировки задач
