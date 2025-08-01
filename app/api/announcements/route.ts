@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
-import { getCachedQuery, generateCacheKey } from "@/lib/cache-utils"
 
 // GET /api/announcements - Получить все объявления
 export async function GET(request: NextRequest) {
@@ -37,44 +36,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const cacheKey = generateCacheKey('announcements', { category, search })
-    
-    const announcements = await getCachedQuery(
-      cacheKey,
-      () => prisma.announcement.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          title: true,
-          content: true,
-          category: true,
-          likes: true,
-          comments: true,
-          createdAt: true,
-          updatedAt: true,
-          author: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              initials: true,
-            },
+    const announcements = await prisma.announcement.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        category: true,
+        likes: true,
+        comments: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            initials: true,
           },
         },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 50, // Ограничиваем количество результатов для производительности
-        // Добавляем кэширование для повторяющихся запросов
-        ...(process.env.NODE_ENV === 'production' && {
-          cacheStrategy: {
-            swr: 60, // Stale-while-revalidating для 60 секунд
-            ttl: 60, // Кэшируем результаты на 60 секунд
-          },
-        }),
-      }),
-      60000 // 60 секунд TTL
-    )
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 50, // Ограничиваем количество результатов для производительности
+    })
 
     return NextResponse.json(announcements)
   } catch (error) {
@@ -137,12 +123,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Очищаем кэш объявлений при создании нового
-    if (process.env.NODE_ENV === 'development') {
-      import('@/lib/cache-utils').then(({ clearCache }) => {
-        clearCache('announcements')
-      })
-    }
+
 
     return NextResponse.json(announcement, { status: 201 })
   } catch (error) {

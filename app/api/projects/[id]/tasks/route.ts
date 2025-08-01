@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
-import { cache } from "@/lib/cache"
 
 // GET /api/projects/[id]/tasks - Получить задачи проекта
 export async function GET(
@@ -44,14 +43,7 @@ export async function GET(
       return NextResponse.json({ error: "Проект не найден" }, { status: 404 })
     }
 
-    // Создаем ключ кэша
-    const cacheKey = `project-tasks:${projectId}:${status || 'all'}:${search || 'none'}`
-    
-    // Проверяем кэш
-    const cachedTasks = cache.get(cacheKey)
-    if (cachedTasks) {
-      return NextResponse.json(cachedTasks)
-    }
+
 
     // Получаем ID участников проекта
     const memberIds = project.members.map(member => member.user.id)
@@ -100,9 +92,6 @@ export async function GET(
         createdAt: "desc",
       },
     })
-
-    // Кэшируем результат на 2 минуты
-    cache.set(cacheKey, tasks, 120000)
 
     return NextResponse.json(tasks)
   } catch (error) {
@@ -190,8 +179,7 @@ export async function POST(
       },
     })
 
-    // Очищаем кэш
-    cache.del(`project-tasks:${projectId}:*`)
+
 
     return NextResponse.json(task, { status: 201 })
   } catch (error) {

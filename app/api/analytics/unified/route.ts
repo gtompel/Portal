@@ -90,13 +90,6 @@ export async function GET(request: NextRequest) {
           updatedAt: true,
         },
         take: 100, // Ограничиваем количество документов для аналитики
-        // Добавляем кэширование для аналитических запросов
-        ...(process.env.NODE_ENV === 'production' && {
-          cacheStrategy: {
-            swr: 300, // Stale-while-revalidating для 5 минут
-            ttl: 300, // Кэшируем результаты на 5 минут
-          },
-        }),
       }),
       // Все объявления за период
       prisma.announcement.findMany({
@@ -116,13 +109,6 @@ export async function GET(request: NextRequest) {
           },
         },
         take: 100, // Ограничиваем количество результатов для аналитики
-        // Добавляем кэширование для аналитических запросов
-        ...(process.env.NODE_ENV === 'production' && {
-          cacheStrategy: {
-            swr: 300, // Stale-while-revalidating для 5 минут
-            ttl: 300, // Кэшируем результаты на 5 минут
-          },
-        }),
       }),
       // Все пользователи
       prisma.user.findMany({

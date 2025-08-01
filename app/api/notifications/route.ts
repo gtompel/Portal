@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
-import { cache } from "@/lib/cache"
 
 // GET /api/notifications - Получить уведомления для пользователя
 export async function GET(request: NextRequest) {
@@ -21,12 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Необходимо указать userId" }, { status: 400 })
     }
 
-    // Проверяем кэш
-    const cacheKey = `notifications:${userId}`
-    const cachedNotifications = cache.get(cacheKey)
-    if (cachedNotifications) {
-      return NextResponse.json(cachedNotifications)
-    }
+
 
     // Получаем уведомления для пользователя из базы данных
     const notifications = await prisma.notification.findMany({
@@ -155,9 +149,6 @@ export async function GET(request: NextRequest) {
           return null
       }
     }).filter(Boolean) // Фильтруем null значения
-
-    // Кэшируем результат на 30 секунд
-    cache.set(cacheKey, formattedNotifications, 30000)
 
     return NextResponse.json(formattedNotifications)
   } catch (error) {
