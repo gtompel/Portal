@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useToast } from "@/hooks/use-toast"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { TaskListHeader } from "./components/TaskListHeader"
 import { TaskListFilters } from "./components/TaskListFilters"
 import { TaskListTable } from "./components/TaskListTable"
@@ -154,61 +155,63 @@ export function TaskListRefactored() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Заголовок */}
-      <TaskListHeader 
-        showArchived={filters.showArchived}
-        isSSEConnected={isSSEConnected}
-      />
-      
-      {/* Фильтры */}
-      <TaskListFilters
-        filters={filters}
-        users={users}
-        onFilterChange={updateFilter}
-        onResetFilters={resetFiltersToDefaults}
-        filtersChanged={filtersChanged}
-        onCreateTask={handleCreateTask}
-      />
-      
-      {/* Таблица */}
-      <TaskListTable
-        tasks={filteredTasks}
-        isLoading={isLoading}
-        showArchived={filters.showArchived}
-        onSort={handleSort}
-        sortField={filters.sortField}
-        sortDirection={filters.sortDirection}
-        users={users}
-        setTasks={setTasks}
-        onEdit={handleEditTask}
-        onDelete={handleDeleteTask}
-        onArchive={handleArchiveTask}
-        onRestore={handleRestoreTask}
-        onQuickUpdateStatus={handleQuickUpdateStatus}
-        onQuickUpdatePriority={handleQuickUpdatePriority}
-        onQuickUpdateNetworkType={handleQuickUpdateNetworkType}
-        onQuickUpdateAssignee={handleQuickUpdateAssignee}
-      />
-      
-      {/* Диалоги */}
-      <TaskDialogs
-        users={users}
-        isCreateDialogOpen={isCreateDialogOpen}
-        isEditDialogOpen={isEditDialogOpen}
-        isDeleteDialogOpen={isDeleteDialogOpen}
-        currentTask={currentTask}
-        taskToDelete={taskToDelete}
-        isAddingTask={isAddingTask}
-        isEditingTask={isEditingTask}
-        isDeletingTask={isDeletingTask}
-        onCreateTask={handleCreateTaskSubmit}
-        onUpdateTask={handleUpdateTask}
-        onDeleteTask={handleDeleteTaskConfirm}
-        onCloseCreateDialog={handleCloseCreateDialog}
-        onCloseEditDialog={handleCloseEditDialog}
-        onCloseDeleteDialog={handleCloseDeleteDialog}
-      />
-    </div>
+    <TooltipProvider>
+      <div className="space-y-4">
+        {/* Заголовок */}
+        <TaskListHeader 
+          showArchived={filters.showArchived}
+          isSSEConnected={isSSEConnected}
+        />
+        
+        {/* Фильтры */}
+        <TaskListFilters
+          filters={filters}
+          users={users}
+          onFilterChange={updateFilter}
+          onResetFilters={resetFiltersToDefaults}
+          filtersChanged={filtersChanged}
+          onCreateTask={handleCreateTask}
+        />
+        
+        {/* Таблица */}
+        <TaskListTable
+          tasks={filteredTasks}
+          isLoading={isLoading}
+          showArchived={filters.showArchived}
+          onSort={handleSort}
+          sortField={filters.sortField}
+          sortDirection={filters.sortDirection}
+          users={users}
+          setTasks={setTasks}
+          onEdit={handleEditTask}
+          onDelete={handleDeleteTask}
+          onArchive={handleArchiveTask}
+          onRestore={handleRestoreTask}
+          onQuickUpdateStatus={handleQuickUpdateStatus}
+          onQuickUpdatePriority={handleQuickUpdatePriority}
+          onQuickUpdateNetworkType={handleQuickUpdateNetworkType}
+          onQuickUpdateAssignee={handleQuickUpdateAssignee}
+        />
+        
+        {/* Диалоги */}
+        <TaskDialogs
+          users={users}
+          isCreateDialogOpen={isCreateDialogOpen}
+          isEditDialogOpen={isEditDialogOpen}
+          isDeleteDialogOpen={isDeleteDialogOpen}
+          currentTask={currentTask}
+          taskToDelete={taskToDelete}
+          isAddingTask={isAddingTask}
+          isEditingTask={isEditingTask}
+          isDeletingTask={isDeletingTask}
+          onCreateTask={handleCreateTaskSubmit}
+          onUpdateTask={handleUpdateTask}
+          onDeleteTask={handleDeleteTaskConfirm}
+          onCloseCreateDialog={handleCloseCreateDialog}
+          onCloseEditDialog={handleCloseEditDialog}
+          onCloseDeleteDialog={handleCloseDeleteDialog}
+        />
+      </div>
+    </TooltipProvider>
   )
 } 

@@ -5,19 +5,30 @@
  * Использование: node scripts/export-import-data.js
  */
 
+// Загружаем переменные окружения
+require('dotenv').config();
+
 const fs = require('fs');
 const path = require('path');
 
 // Конфигурация
-const CLOUD_DATABASE_URL = process.env.DATABASE_URL || "prisma+postgres://accelerate.prisma-data.net/?api_key=....";
+const DATABASE_URL = process.env.DATABASE_URL;
 const LOCAL_DATABASE_URL = "postgresql://portal_user:portal_password@localhost:5432/portal_db";
 const EXPORT_FILE = path.join(__dirname, '../data-export.json');
+
+// Проверяем наличие DATABASE_URL
+if (!DATABASE_URL) {
+  console.error('❌ Ошибка: DATABASE_URL не установлен в переменных окружения');
+  process.exit(1);
+}
 
 async function exportData() {
   console.log('🔄 Экспорт данных из облачной базы...');
   
-  // Временно подключаемся к облачной базе
-  process.env.DATABASE_URL = CLOUD_DATABASE_URL;
+  // Используем DATABASE_URL из переменных окружения
+  // Преобразуем prisma+postgres:// в prisma:// для совместимости
+  const prismaUrl = DATABASE_URL.replace('prisma+postgres://', 'prisma://');
+  process.env.DATABASE_URL = prismaUrl;
   
   const { PrismaClient } = require('@prisma/client');
   const cloudPrisma = new PrismaClient();
