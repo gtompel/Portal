@@ -116,7 +116,6 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async redirect({ url, baseUrl }) {
-      console.log('🔀 Redirect callback:', { url, baseUrl })
       // Если URL относительный или начинается с baseUrl - разрешаем
       if (url.startsWith('/') || url.startsWith(baseUrl)) {
         return url

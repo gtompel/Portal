@@ -10,7 +10,10 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   return (
-    <SessionProvider>
+    <SessionProvider 
+      refetchInterval={5 * 60} // Обновляем сессию каждые 5 минут
+      refetchOnWindowFocus={true} // Обновляем при фокусе окна
+    >
       <ProtectedLayout>{children}</ProtectedLayout>
     </SessionProvider>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import { type ReactNode, useEffect, useState, useMemo } from "react"
-import { useSession } from "next-auth/react"
+import { useSession, signIn } from "next-auth/react"
 import { usePathname, useRouter } from "next/navigation"
 import Sidebar from "@/components/sidebar"
 import Header from "@/components/header"
@@ -14,16 +14,29 @@ interface ProtectedLayoutProps {
 const publicRoutes = ["/auth/login", "/auth/register", "/auth/error", "/auth/forgot-password", "/auth/reset-password"]
 
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const router = useRouter()
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
   const [hasInitialized, setHasInitialized] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
 
   const isPublicRoute = useMemo(() => 
     publicRoutes.includes(pathname) || pathname?.startsWith("/auth/reset-password"), 
     [pathname]
   )
+
+  // Функция для попытки восстановления сессии
+  const attemptSessionRecovery = async () => {
+    try {
+      await update()
+    } catch (error) {
+      if (retryCount < 2) {
+        setRetryCount(prev => prev + 1)
+        setTimeout(() => attemptSessionRecovery(), 1000 * (retryCount + 1))
+      }
+    }
+  }
 
   useEffect(() => {
     // Инициализация только один раз
@@ -37,8 +50,14 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     // Только после инициализации проверяем аутентификацию
     if (!hasInitialized) return
 
-    // Если страница не публичная и нет сессии, перенаправляем на логин
-    if (!isPublicRoute && status === "unauthenticated") {
+    // Если статус unauthenticated, пытаемся восстановить сессию
+    if (status === "unauthenticated" && retryCount < 2) {
+      attemptSessionRecovery()
+      return
+    }
+
+    // Если страница не публичная и нет сессии после попыток восстановления
+    if (!isPublicRoute && status === "unauthenticated" && retryCount >= 2) {
       router.push("/auth/login")
     }
 
@@ -46,11 +65,16 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     if (isPublicRoute && status === "authenticated") {
       router.push("/")
     }
-  }, [status, router, pathname, isPublicRoute, hasInitialized])
+  }, [status, router, pathname, isPublicRoute, hasInitialized, retryCount, update])
 
-  // Показываем загрузку только при первой инициализации
-  if (isLoading) {
-    return <LoadingScreen />
+  // Показываем загрузку только при первой инициализации или при попытках восстановления
+  if (isLoading || (status === "unauthenticated" && retryCount < 2)) {
+    return (
+      <LoadingScreen 
+        message={retryCount > 0 ? "Восстановление сессии..." : "Загрузка..."}
+        subMessage={retryCount > 0 ? `Попытка ${retryCount}/2` : "Пожалуйста, подождите"}
+      />
+    )
   }
 
   // Для публичных маршрутов просто отображаем контент без общего layout

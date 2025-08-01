@@ -1599,7 +1599,7 @@ export function TaskList() {
 
         {/* Таблица задач */}
                 <div className="rounded-md border overflow-x-auto">
-          <Table className="min-w-[800px] lg:min-w-[1000px]">
+                          <Table className="min-w-[900px] lg:min-w-[1100px]">
                          <TableHeader>
                <TableRow>
                  <TableHead className="w-[80px]">
@@ -1622,7 +1622,7 @@ export function TaskList() {
                      {getSortIcon("title")}
                    </Button>
                  </TableHead>
-                 <TableHead className="w-[200px]">
+                 <TableHead className="w-[300px]">
                    <Button
                      variant="ghost"
                      onClick={() => handleSort("description")}
@@ -1693,7 +1693,7 @@ export function TaskList() {
                        <Skeleton className="h-4 w-8" />
                      </TableCell>
                      <TableCell>
-                       <Skeleton className="h-4 w-[200px]" />
+                       <Skeleton className="h-4 w-[280px]" />
                      </TableCell>
                      <TableCell>
                        <Skeleton className="h-4 w-[150px]" />
@@ -1720,7 +1720,7 @@ export function TaskList() {
                  ))
               ) : filteredTasks.length > 0 ? (
                 filteredTasks.map((task, index) => (
-                  <TableRow key={task.id} className={task.isArchived ? "opacity-60 bg-muted/30" : ""}>
+                  <TableRow key={task.id} className={`${task.isArchived ? "opacity-60 bg-muted/30" : ""} min-h-[60px]`}>
                                        <TableCell className="font-medium">{getTaskNumber(task, index)}</TableCell>
                    <TableCell className="font-medium">
                      <Tooltip>
@@ -1741,19 +1741,10 @@ export function TaskList() {
                        )}
                      </Tooltip>
                    </TableCell>
-                   <TableCell>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <div className="max-w-[200px] truncate">
-                           {task.description || "-"}
-                         </div>
-                       </TooltipTrigger>
-                       {task.description && task.description.length > 25 && (
-                         <TooltipContent>
-                           <p className="max-w-xs whitespace-pre-wrap">{task.description}</p>
-                         </TooltipContent>
-                       )}
-                     </Tooltip>
+                   <TableCell className="align-top">
+                     <div className="max-w-[280px] whitespace-pre-wrap break-words leading-relaxed">
+                       {task.description || "-"}
+                     </div>
                    </TableCell>
                                          <TableCell>
                        <DropdownMenu>

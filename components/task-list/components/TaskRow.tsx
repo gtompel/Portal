@@ -47,7 +47,7 @@ function TaskRowComponent({
   onQuickUpdateAssignee
 }: TaskRowProps) {
   return (
-    <TableRow className={task.isArchived ? "opacity-60 bg-muted/30" : ""}>
+    <TableRow className={`${task.isArchived ? "opacity-60 bg-muted/30" : ""} min-h-[60px]`}>
       {/* Номер */}
       <TableCell className="font-medium">
         {getTaskNumber(task, index)}
@@ -75,19 +75,10 @@ function TaskRowComponent({
       </TableCell>
 
       {/* Описание */}
-      <TableCell>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="max-w-[200px] truncate">
-              {task.description || "-"}
-            </div>
-          </TooltipTrigger>
-          {task.description && task.description.length > 25 && (
-            <TooltipContent>
-              <p className="max-w-xs whitespace-pre-wrap">{task.description}</p>
-            </TooltipContent>
-          )}
-        </Tooltip>
+      <TableCell className="align-top">
+        <div className="max-w-[280px] whitespace-pre-wrap break-words leading-relaxed">
+          {task.description || "-"}
+        </div>
       </TableCell>
 
       {/* Исполнитель */}

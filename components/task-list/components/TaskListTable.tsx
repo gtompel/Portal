@@ -57,7 +57,7 @@ export function TaskListTable({
 
   return (
     <div className="rounded-md border overflow-x-auto">
-      <Table className="min-w-[800px] lg:min-w-[1000px]">
+      <Table className="min-w-[900px] lg:min-w-[1100px]">
         <TableHeader>
           <TableRow>
             <TableHead className="w-[80px]">
@@ -80,7 +80,7 @@ export function TaskListTable({
                 {getSortIcon("title")}
               </Button>
             </TableHead>
-            <TableHead className="w-[200px]">
+            <TableHead className="w-[300px]">
               <Button
                 variant="ghost"
                 onClick={() => onSort("description")}
@@ -150,9 +150,9 @@ export function TaskListTable({
                 <TableCell>
                   <Skeleton className="h-4 w-8" />
                 </TableCell>
-                <TableCell>
-                  <Skeleton className="h-4 w-[200px]" />
-                </TableCell>
+                                     <TableCell>
+                       <Skeleton className="h-4 w-[280px]" />
+                     </TableCell>
                 <TableCell>
                   <Skeleton className="h-4 w-[150px]" />
                 </TableCell>

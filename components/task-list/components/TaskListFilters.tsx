@@ -137,8 +137,8 @@ export function TaskListFilters({
         {!filters.showArchived && (
           <Button className="gap-1 w-full h-9 text-sm" onClick={onCreateTask}>
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">+ Новый АРМ</span>
-            <span className="sm:hidden">+ АРМ</span>
+            <span className="hidden sm:inline">Новый АРМ</span>
+            <span className="sm:hidden">+</span>
           </Button>
         )}
       </div>

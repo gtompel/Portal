@@ -1,19 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 import { emitTaskEvent } from "@/lib/events";
+import { checkApiAuth, createSuccessResponse, createErrorResponse, handleDatabaseError } from "@/lib/api-auth";
 
 // GET /api/tasks - Получить все задачи
 export async function GET(request: NextRequest) {
   try {
     // Проверяем аутентификацию
-    const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
-    })
+    const authResult = await checkApiAuth(request)
     
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!authResult.success) {
+      return authResult.response!
     }
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
@@ -98,27 +95,27 @@ export async function GET(request: NextRequest) {
       take: 100, // Ограничиваем количество задач для производительности
     });
 
-    return NextResponse.json(tasks);
+    return createSuccessResponse(tasks);
   } catch (error) {
-  //  console.error("Ошибка при получении задач:", error);
-    return NextResponse.json(
-      { error: "Ошибка при получении задач" },
-      { status: 500 }
-    );
+    return handleDatabaseError(error);
   }
 }
 
 // POST /api/tasks - Создать новую задачу
 export async function POST(request: NextRequest) {
   try {
+    // Проверяем аутентификацию
+    const authResult = await checkApiAuth(request)
+    
+    if (!authResult.success) {
+      return authResult.response!
+    }
+    
     const body = await request.json();
 
     // Проверка обязательных полей
     if (!body.title || !body.creatorId) {
-      return NextResponse.json(
-        { error: "Название задачи и ID создателя обязательны" },
-        { status: 400 }
-      );
+      return createErrorResponse("Название задачи и ID создателя обязательны", 400);
     }
 
     // Проверяем, существует ли пользователь-создатель
@@ -127,10 +124,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!creator) {
-      return NextResponse.json(
-        { error: "Пользователь-создатель не найден" },
-        { status: 404 }
-      );
+      return createErrorResponse("Пользователь-создатель не найден", 404);
     }
 
     // Генерируем номер задачи на основе активных задач
@@ -197,12 +191,8 @@ export async function POST(request: NextRequest) {
       userId: body.creatorId 
     });
 
-    return NextResponse.json(task, { status: 201 });
+    return createSuccessResponse(task, 201);
   } catch (error) {
-    console.error("Ошибка при создании задачи:", error);
-    return NextResponse.json(
-      { error: "Ошибка при создании задачи" },
-      { status: 500 }
-    );
+    return handleDatabaseError(error);
   }
 }

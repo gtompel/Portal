@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { useCallback } from "react"
 import { TaskFormData, Task } from "../types"
 
 // Схема валидации для формы задачи
@@ -44,7 +45,7 @@ export function useTaskForms() {
   })
 
   // Заполнение формы редактирования данными задачи
-  const populateEditForm = (task: Task) => {
+  const populateEditForm = useCallback((task: Task) => {
     editForm.reset({
       title: task.title,
       description: task.description || "",
@@ -54,17 +55,17 @@ export function useTaskForms() {
       dueDate: task.dueDate || "",
       assigneeId: task.assignee?.id || "",
     })
-  }
+  }, [editForm])
 
   // Сброс формы создания
-  const resetCreateForm = () => {
+  const resetCreateForm = useCallback(() => {
     createForm.reset()
-  }
+  }, [createForm])
 
   // Сброс формы редактирования
-  const resetEditForm = () => {
+  const resetEditForm = useCallback(() => {
     editForm.reset()
-  }
+  }, [editForm])
 
   return {
     createForm,

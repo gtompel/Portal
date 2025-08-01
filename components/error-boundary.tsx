@@ -89,4 +89,6 @@ function ErrorFallback({ error }: { error?: Error }) {
       </Card>
     </div>
   )
-} 
+}
+
+export default ErrorBoundary 
