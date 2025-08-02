@@ -38,7 +38,7 @@ export async function handleApiError(response: Response, retryCount = 0): Promis
           ...response,
           headers: {
             ...response.headers,
-            'Authorization': `Bearer ${session.accessToken}`
+            'Authorization': `Bearer ${session.user?.id || ''}`
           }
         })
       }

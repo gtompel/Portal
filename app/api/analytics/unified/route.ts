@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
       announcements,
       users,
       taskStats,
-      taskStatusStats,
       taskPriorityStats,
       taskNetworkStats,
       tasksByAssignee,
@@ -57,11 +56,8 @@ export async function GET(request: NextRequest) {
       overdueTasks,
       upcomingTasks
     ] = await prisma.$transaction([
-      // Все задачи за период
       prisma.task.findMany({
-        where: {
-          createdAt: { gte: startDate }
-        },
+        where: { createdAt: { gte: startDate } },
         select: {
           id: true,
           title: true,
@@ -70,92 +66,47 @@ export async function GET(request: NextRequest) {
           networkType: true,
           dueDate: true,
           createdAt: true,
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              initials: true
-            }
-          }
+          assigneeId: true,
+          assignee: { select: { id: true, name: true, avatar: true, initials: true } }
         }
       }),
-      // Все документы (без фильтра по дате)
       prisma.document.findMany({
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        take: 100, // Ограничиваем количество документов для аналитики
+        select: { id: true, name: true, type: true, createdAt: true, updatedAt: true },
+        take: 100
       }),
-      // Все объявления за период
       prisma.announcement.findMany({
-        where: {
-          createdAt: { gte: startDate }
-        },
-        select: {
-          id: true,
-          title: true,
-          category: true,
-          createdAt: true,
-          author: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        take: 100, // Ограничиваем количество результатов для аналитики
+        where: { createdAt: { gte: startDate } },
+        select: { id: true, title: true, category: true, createdAt: true, author: { select: { id: true, name: true } } },
+        take: 100
       }),
-      // Все пользователи
       prisma.user.findMany({
-        select: {
-          id: true,
-          name: true,
-          avatar: true,
-          initials: true,
-          position: true,
-          department: true,
-        },
-        take: 1000, // Ограничиваем количество пользователей для аналитики
+        select: { id: true, name: true, avatar: true, initials: true, position: true, department: true },
+        take: 1000
       }),
-      // Статистика по задачам
       prisma.task.groupBy({
         by: ["status"],
         _count: { id: true },
-        where: { createdAt: { gte: startDate } }
+        where: { createdAt: { gte: startDate } },
+        orderBy: { status: "asc" }
       }),
-      // Статистика по статусам
-      prisma.task.groupBy({
-        by: ["status"],
-        _count: { id: true },
-        where: { createdAt: { gte: startDate } }
-      }),
-      // Статистика по приоритетам
       prisma.task.groupBy({
         by: ["priority"],
         _count: { id: true },
-        where: { createdAt: { gte: startDate } }
+        where: { createdAt: { gte: startDate } },
+        orderBy: { priority: "asc" }
       }),
-      // Статистика по типам сети
       prisma.task.groupBy({
         by: ["networkType"],
         _count: { id: true },
-        where: { createdAt: { gte: startDate } }
+        where: { createdAt: { gte: startDate } },
+        orderBy: { networkType: "asc" }
       }),
-      // Задачи по исполнителям
       prisma.task.groupBy({
         by: ["assigneeId"],
         _count: { id: true },
-        where: { 
-          createdAt: { gte: startDate },
-          assigneeId: { not: null }
-        }
+        where: { createdAt: { gte: startDate }, assigneeId: { not: null } },
+        orderBy: { assigneeId: "asc" }
       }),
-      // Задачи по времени (последние 30 дней)
       prisma.$queryRaw`
         SELECT 
           DATE("createdAt") as date,
@@ -166,57 +117,33 @@ export async function GET(request: NextRequest) {
         GROUP BY DATE("createdAt")
         ORDER BY date ASC
       `,
-      // Просроченные задачи
       prisma.task.findMany({
-        where: {
-          status: { not: "COMPLETED" },
-          dueDate: { lt: currentDate },
-          dueDate: { not: null }
-        },
+        where: { status: { not: "COMPLETED" }, dueDate: { lt: currentDate, not: null } },
         select: {
           id: true,
           title: true,
           status: true,
           priority: true,
           dueDate: true,
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              initials: true
-            }
-          }
+          assigneeId: true,
+          assignee: { select: { id: true, name: true, avatar: true, initials: true } }
         }
       }),
-      // Ближайшие задачи
       prisma.task.findMany({
-        where: {
-          status: { not: "COMPLETED" },
-          dueDate: { 
-            gte: currentDate,
-            lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Следующие 7 дней
-          }
-        },
+        where: { status: { not: "COMPLETED" }, dueDate: { gte: currentDate, lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } },
         select: {
           id: true,
           title: true,
           status: true,
           priority: true,
           dueDate: true,
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              initials: true
-            }
-          }
+          assigneeId: true,
+          assignee: { select: { id: true, name: true, avatar: true, initials: true } }
         },
         orderBy: { dueDate: "asc" },
         take: 10
       })
-    ])
+    ]);
 
     // Формируем общую статистику
     const totalTasks = tasks.length
@@ -227,23 +154,23 @@ export async function GET(request: NextRequest) {
     const newTasks = tasks.filter(task => task.status === "NEW").length
 
     // Статистика по статусам
-    const tasksByStatus = taskStatusStats.map(stat => ({
+    const tasksByStatus = taskStats.map(stat => ({
       name: getStatusText(stat.status),
-      value: stat._count.id,
+      value: typeof stat._count === 'object' ? stat._count.id || 0 : 0,
       color: getStatusColor(stat.status)
     }))
 
     // Статистика по приоритетам
     const tasksByPriority = taskPriorityStats.map(stat => ({
       name: getPriorityText(stat.priority),
-      value: stat._count.id,
+      value: typeof stat._count === 'object' ? stat._count.id || 0 : 0,
       color: getPriorityColor(stat.priority)
     }))
 
     // Статистика по типам сети
     const tasksByNetwork = taskNetworkStats.map(stat => ({
       name: getNetworkTypeText(stat.networkType),
-      value: stat._count.id,
+      value: typeof stat._count === 'object' ? stat._count.id || 0 : 0,
       color: getNetworkTypeColor(stat.networkType)
     }))
 
@@ -284,7 +211,7 @@ export async function GET(request: NextRequest) {
     if (completedWithDueDate.length > 0) {
       const totalTime = completedWithDueDate.reduce((acc, task) => {
         const created = new Date(task.createdAt)
-        const completed = new Date(task.updatedAt)
+        const completed = new Date(task.createdAt) // Используем createdAt вместо updatedAt
         return acc + (completed.getTime() - created.getTime())
       }, 0)
       averageCompletionTime = Math.round(totalTime / completedWithDueDate.length / (1000 * 60 * 60 * 24)) // в днях

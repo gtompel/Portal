@@ -52,6 +52,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+// Функция для получения инициалов из имени
+const getInitials = (name: string): string => {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+}
+
 type EmployeeDetails = {
   id: string
   name: string

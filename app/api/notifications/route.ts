@@ -42,57 +42,35 @@ export async function GET(request: NextRequest) {
             title: true,
             date: true,
             startTime: true,
-            creator: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
+            creator: { select: { id: true, name: true } }
+          }
         },
         task: {
           select: {
             id: true,
             title: true,
             dueDate: true,
-            creator: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
+            creator: { select: { id: true, name: true } }
+          }
         },
         message: {
           select: {
             id: true,
             content: true,
-            sender: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
+            sender: { select: { id: true, name: true } }
+          }
         },
         announcement: {
           select: {
             id: true,
             title: true,
-            author: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
+            author: { select: { id: true, name: true } }
+          }
+        }
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 50, // Ограничиваем количество уведомлений для производительности
-    })
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
 
     // Преобразуем уведомления в формат, который будет отправлен клиенту
     const formattedNotifications = notifications.map((notification) => {
@@ -138,7 +116,7 @@ export async function GET(request: NextRequest) {
             id: notification.id,
             type: notification.type,
             title: notification.announcement?.title || "Объявление",
-            description: notification.announcement?.content ? (notification.announcement.content.length > 50 ? `${notification.announcement.content.substring(0, 50)}...` : notification.announcement.content) : "Нет содержимого",
+            description: "Объявление в системе",
             date: null,
             createdAt: notification.createdAt,
             read: notification.read,

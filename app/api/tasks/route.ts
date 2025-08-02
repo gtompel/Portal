@@ -104,94 +104,50 @@ export async function GET(request: NextRequest) {
 // POST /api/tasks - Создать новую задачу
 export async function POST(request: NextRequest) {
   try {
-    // Проверяем аутентификацию
     const authResult = await checkApiAuth(request)
-    
     if (!authResult.success) {
       return authResult.response!
     }
-    
     const body = await request.json();
 
-    // Проверка обязательных полей
-    if (!body.title || !body.creatorId) {
-      return createErrorResponse("Название задачи и ID создателя обязательны", 400);
-    }
-
-    // Проверяем, существует ли пользователь-создатель
-    const creator = await prisma.user.findUnique({
-      where: { id: body.creatorId },
-    });
-
-    if (!creator) {
-      return createErrorResponse("Пользователь-создатель не найден", 404);
-    }
-
-    // Генерируем номер задачи на основе активных задач
-    const existingActiveTasks = await prisma.task.findMany({
-      where: { isArchived: false }
-    });
-    const maxTaskNumber = existingActiveTasks.reduce(
-      (max, task: any) => Math.max(max, task.taskNumber || 0),
-      0
-    );
-    
-    // Новые задачи получают больший номер (создаются в конце списка)
-    const newTaskNumber = maxTaskNumber + 1;
-    
-    // Создание задачи
-    const task = await prisma.task.create({
-      data: {
-        title: body.title,
-        description: body.description || null,
-        status: body.status || "NEW",
-        priority: body.priority || "LOW",
-        networkType: body.networkType || "EMVS",
-        dueDate: body.dueDate ? new Date(body.dueDate) : null,
-        assigneeId: body.assigneeId || null,
-        creatorId: body.creatorId,
-        taskNumber: newTaskNumber,
-      },
-      include: {
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            initials: true,
-          },
-        },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    // Создаём уведомление для исполнителя, если он назначен
-    if (task.assigneeId) {
-      await prisma.notification.create({
+    const result = await prisma.$transaction(async (tx) => {
+      const [creator, maxTask] = await Promise.all([
+        tx.user.findUnique({ where: { id: body.creatorId } }),
+        tx.task.aggregate({ where: { isArchived: false }, _max: { taskNumber: true } })
+      ]);
+      if (!creator) throw new Error("Пользователь-создатель не найден");
+      const newTaskNumber = (maxTask._max.taskNumber || 0) + 1;
+      const task = await tx.task.create({
         data: {
-          type: "TASK",
-          userId: task.assigneeId,
-          taskId: task.id,
-          read: false,
+          title: body.title,
+          description: body.description || null,
+          status: body.status || "NEW",
+          priority: body.priority || "LOW",
+          networkType: body.networkType || "EMVS",
+          dueDate: body.dueDate ? new Date(body.dueDate) : null,
+          assigneeId: body.assigneeId || null,
+          creatorId: body.creatorId,
+          taskNumber: newTaskNumber,
+        },
+        include: {
+          assignee: { select: { id: true, name: true, avatar: true, initials: true } },
+          creator: { select: { id: true, name: true } },
         },
       });
-    }
-
-
-
-    // Отправляем событие о создании задачи
-    emitTaskEvent('task_created', { 
-      taskId: task.id, 
-      task: task,
-      userId: body.creatorId 
+      if (task.assigneeId) {
+        await tx.notification.create({
+          data: {
+            type: "TASK",
+            userId: task.assigneeId,
+            taskId: task.id,
+            read: false,
+          },
+        });
+      }
+      return task;
     });
-
-    return createSuccessResponse(task, 201);
+    emitTaskEvent('task_created', { taskId: result.id, task: result, userId: body.creatorId });
+    return createSuccessResponse(result, 201);
   } catch (error) {
     return handleDatabaseError(error);
   }
