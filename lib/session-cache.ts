@@ -50,7 +50,9 @@ class SessionCache {
 
 export const sessionCache = new SessionCache()
 
-// Автоматическая очистка каждые 10 минут
-setInterval(() => {
-  sessionCache.cleanup()
-}, 10 * 60 * 1000) 
+// Автоматическая очистка каждые 10 минут (только в браузере)
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    sessionCache.cleanup()
+  }, 10 * 60 * 1000)
+} 

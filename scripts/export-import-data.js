@@ -8,16 +8,18 @@
 // Загружаем переменные окружения
 require('dotenv').config();
 
+// Проверяем, есть ли DATABASE_URL в аргументах командной строки
+const useLocalDb = process.argv.includes('--local-db');
+
 const fs = require('fs');
 const path = require('path');
 
 // Конфигурация
 const DATABASE_URL = process.env.DATABASE_URL;
-const LOCAL_DATABASE_URL = "postgresql://portal_user:portal_password@localhost:5432/portal_db";
 const EXPORT_FILE = path.join(__dirname, '../data-export.json');
 
-// Проверяем наличие DATABASE_URL
-if (!DATABASE_URL) {
+// Проверяем наличие DATABASE_URL только для экспорта
+if (process.argv[2] === 'export' && !DATABASE_URL) {
   console.error('❌ Ошибка: DATABASE_URL не установлен в переменных окружения');
   process.exit(1);
 }
@@ -248,8 +250,14 @@ async function importData() {
     return;
   }
 
-  // Подключаемся к локальной базе
-  process.env.DATABASE_URL = LOCAL_DATABASE_URL;
+  // Сохраняем оригинальный DATABASE_URL
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  
+  // Подключаемся к локальной базе только если указан флаг
+  if (useLocalDb) {
+    // Используем DATABASE_URL напрямую, так как он уже настроен на локальную базу
+    console.log('📊 Используем локальную базу данных');
+  }
   
   const { PrismaClient } = require('@prisma/client');
   const localPrisma = new PrismaClient();
@@ -282,69 +290,126 @@ async function importData() {
     await localPrisma.user.deleteMany();
 
     console.log('📥 Импорт пользователей...');
+    const userMap = new Map(); // Для отслеживания старых и новых ID
+    
     for (const user of data.users) {
       const { skills, education, experience, projects, ...userData } = user;
-      await localPrisma.user.create({
-        data: userData
+      const oldId = userData.id;
+      
+      // Очищаем поля, которые могут содержать несуществующие ссылки
+      const cleanUserData = {
+        ...userData,
+        id: undefined, // Позволяем базе данных генерировать новый ID
+        managerId: undefined, // Временно убираем ссылку на менеджера
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
+      
+      const createdUser = await localPrisma.user.create({
+        data: cleanUserData
       });
+      
+      // Сохраняем соответствие старых и новых ID
+      userMap.set(oldId, createdUser.id);
+    }
+    
+    // Обновляем связи менеджеров
+    console.log('📥 Обновление связей менеджеров...');
+    for (const user of data.users) {
+      if (user.managerId && userMap.has(user.managerId)) {
+        const newUserId = userMap.get(user.id);
+        const newManagerId = userMap.get(user.managerId);
+        
+        await localPrisma.user.update({
+          where: { id: newUserId },
+          data: { managerId: newManagerId }
+        });
+      }
     }
 
     console.log('📥 Импорт проектов...');
+    const projectMap = new Map(); // Для отслеживания старых и новых ID проектов
     for (const project of data.projects) {
       const { members, ...projectData } = project;
+      const cleanProjectData = {
+        ...projectData,
+        id: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
       const createdProject = await localPrisma.project.create({
-        data: projectData
+        data: cleanProjectData
       });
-      
-      // Импортируем участников проекта
-      for (const member of members) {
-        await localPrisma.projectMember.create({
-          data: {
-            projectId: createdProject.id,
-            userId: member.userId,
-            role: member.role,
-          }
-        });
-      }
-    }
-
-    console.log('📥 Импорт задач...');
-    for (const task of data.tasks) {
-      await localPrisma.task.create({
-        data: task
-      });
+      projectMap.set(project.id, createdProject.id); // Сохраняем соответствие старых и новых ID проектов
     }
 
     console.log('📥 Импорт объявлений...');
+    const announcementMap = new Map();
     for (const announcement of data.announcements) {
-      await localPrisma.announcement.create({
-        data: announcement
+      const { author, ...announcementData } = announcement;
+      const cleanAnnouncementData = {
+        ...announcementData,
+        id: undefined,
+        authorId: userMap.has(announcement.authorId) ? userMap.get(announcement.authorId) : undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+        likes: undefined,
+        comments: undefined,
+      };
+      const createdAnnouncement = await localPrisma.announcement.create({
+        data: cleanAnnouncementData
       });
+      announcementMap.set(announcement.id, createdAnnouncement.id);
     }
 
-    console.log('📥 Импорт событий...');
-    for (const event of data.events) {
-      const { participants, ...eventData } = event;
-      const createdEvent = await localPrisma.event.create({
-        data: eventData
+    console.log('📥 Импорт задач...');
+    const taskMap = new Map();
+    for (const task of data.tasks) {
+      const { assignee, creator, ...taskData } = task;
+      const cleanTaskData = {
+        ...taskData,
+        id: undefined,
+        assigneeId: userMap.has(task.assigneeId) ? userMap.get(task.assigneeId) : undefined,
+        creatorId: userMap.has(task.creatorId) ? userMap.get(task.creatorId) : undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
+      const createdTask = await localPrisma.task.create({
+        data: cleanTaskData
       });
-      
-      // Импортируем участников события
-      for (const participant of participants) {
-        await localPrisma.eventParticipant.create({
-          data: {
-            eventId: createdEvent.id,
-            userId: participant.userId,
-            status: participant.status,
-          }
-        });
-      }
+      taskMap.set(task.id, createdTask.id);
+    }
+
+    // Импорт событий
+    console.log('📥 Импорт событий...');
+    const eventMap = new Map();
+    for (const event of data.events) {
+      const { participants, creator, ...eventData } = event;
+      const cleanEventData = {
+        ...eventData,
+        id: undefined,
+        creatorId: userMap.has(event.creatorId) ? userMap.get(event.creatorId) : undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
+      const createdEvent = await localPrisma.event.create({
+        data: cleanEventData
+      });
+      eventMap.set(event.id, createdEvent.id);
     }
 
     console.log('📥 Импорт документов...');
     for (const document of data.documents) {
+      const { creator, ...documentData } = document;
+      const cleanDocumentData = {
+        ...documentData,
+        id: undefined,
+        creatorId: userMap.has(document.creatorId) ? userMap.get(document.creatorId) : undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
       await localPrisma.document.create({
-        data: document
+        data: cleanDocumentData
       });
     }
 
@@ -367,27 +432,74 @@ async function importData() {
     }
 
     console.log('📥 Импорт комментариев...');
-    for (const comment of data.comments) {
-      const { replies, ...commentData } = comment;
-      const createdComment = await localPrisma.comment.create({
-        data: commentData
-      });
-      
-      // Импортируем ответы на комментарии
-      for (const reply of replies) {
-        await localPrisma.comment.create({
-          data: {
-            ...reply,
-            parentId: createdComment.id,
-          }
+    const createdCommentIds = new Map();
+    let remaining = [...data.comments];
+    let added;
+    do {
+      added = 0;
+      const next = [];
+      for (const comment of remaining) {
+        const { replies, author, ...commentData } = comment;
+        if (!userMap.has(comment.authorId)) continue;
+        // Используем новые id для announcementId и taskId
+        const newAnnouncementId = comment.announcementId ? announcementMap.get(comment.announcementId) : undefined;
+        const newTaskId = comment.taskId ? taskMap.get(comment.taskId) : undefined;
+        if (comment.announcementId && !newAnnouncementId) continue;
+        if (comment.taskId && !newTaskId) continue;
+        if (comment.parentId && !createdCommentIds.has(comment.parentId)) {
+          next.push(comment);
+          continue;
+        }
+        const cleanCommentData = {
+          ...commentData,
+          id: undefined,
+          authorId: userMap.get(comment.authorId),
+          parentId: comment.parentId ? createdCommentIds.get(comment.parentId) : undefined,
+          announcementId: newAnnouncementId,
+          taskId: newTaskId,
+          createdAt: undefined,
+          updatedAt: undefined,
+          likesCount: undefined,
+        };
+        const createdComment = await localPrisma.comment.create({
+          data: cleanCommentData
         });
+        createdCommentIds.set(comment.id, createdComment.id);
+        added++;
       }
+      remaining = next;
+    } while (added > 0 && remaining.length > 0);
+    if (remaining.length > 0) {
+      console.log(`⚠️ Пропущено ${remaining.length} комментариев из-за отсутствия валидных parentId/authorId/announcementId/taskId`);
     }
+    // replies импортируются как обычные комментарии, т.к. replies — это просто комментарии с parentId
 
+    // Импорт уведомлений
     console.log('📥 Импорт уведомлений...');
+    const messageMap = new Map();
+    for (const message of data.messages) {
+      if (message.id) messageMap.set(message.id, message.id); // dummy, не используется напрямую
+    }
     for (const notification of data.notifications) {
+      const { user, task, event, message, announcement, ...notificationData } = notification;
+      const newUserId = userMap.get(notification.userId);
+      const newTaskId = notification.taskId ? taskMap.get(notification.taskId) : undefined;
+      const newAnnouncementId = notification.announcementId ? announcementMap.get(notification.announcementId) : undefined;
+      // eventId и messageId не используются, если нужны — аналогично
+      if (!newUserId) continue;
+      if (notification.taskId && !newTaskId) continue;
+      if (notification.announcementId && !newAnnouncementId) continue;
+      const cleanNotificationData = {
+        ...notificationData,
+        id: undefined,
+        userId: newUserId,
+        taskId: newTaskId,
+        announcementId: newAnnouncementId,
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
       await localPrisma.notification.create({
-        data: notification
+        data: cleanNotificationData
       });
     }
 
@@ -409,10 +521,14 @@ async function importData() {
     for (const user of data.users) {
       if (user.education) {
         for (const edu of user.education) {
+          if (!userMap.has(user.id)) continue;
           await localPrisma.education.create({
             data: {
               ...edu,
-              userId: user.id,
+              id: undefined,
+              userId: userMap.get(user.id),
+              createdAt: undefined,
+              updatedAt: undefined,
             }
           });
         }
@@ -423,10 +539,14 @@ async function importData() {
     for (const user of data.users) {
       if (user.experience) {
         for (const exp of user.experience) {
+          if (!userMap.has(user.id)) continue;
           await localPrisma.experience.create({
             data: {
               ...exp,
-              userId: user.id,
+              id: undefined,
+              userId: userMap.get(user.id),
+              createdAt: undefined,
+              updatedAt: undefined,
             }
           });
         }
@@ -456,10 +576,13 @@ async function importData() {
 
     console.log('📥 Импорт участников проектов...');
     for (const member of data.projectMembers) {
+      const newUserId = userMap.get(member.userId);
+      const newProjectId = projectMap ? projectMap.get(member.projectId) : undefined;
+      if (!newUserId || !newProjectId) continue;
       await localPrisma.projectMember.create({
         data: {
-          projectId: member.projectId,
-          userId: member.userId,
+          projectId: newProjectId,
+          userId: newUserId,
           role: member.role,
         }
       });
@@ -467,10 +590,13 @@ async function importData() {
 
     console.log('📥 Импорт участников событий...');
     for (const participant of data.eventParticipants) {
+      const newUserId = userMap.get(participant.userId);
+      const newEventId = eventMap ? eventMap.get(participant.eventId) : undefined;
+      if (!newUserId || !newEventId) continue;
       await localPrisma.eventParticipant.create({
         data: {
-          eventId: participant.eventId,
-          userId: participant.userId,
+          eventId: newEventId,
+          userId: newUserId,
           status: participant.status,
         }
       });
@@ -490,20 +616,26 @@ async function importData() {
 
     console.log('📥 Импорт лайков комментариев...');
     for (const like of data.commentLikes) {
+      const newUserId = userMap.get(like.userId);
+      const newCommentId = createdCommentIds.get(like.commentId);
+      if (!newUserId || !newCommentId) continue;
       await localPrisma.commentLike.create({
         data: {
-          userId: like.userId,
-          commentId: like.commentId,
+          userId: newUserId,
+          commentId: newCommentId,
         }
       });
     }
 
     console.log('📥 Импорт лайков объявлений...');
     for (const like of data.announcementLikes) {
+      const newUserId = userMap.get(like.userId);
+      const newAnnouncementId = announcementMap.get(like.announcementId);
+      if (!newUserId || !newAnnouncementId) continue;
       await localPrisma.announcementLike.create({
         data: {
-          userId: like.userId,
-          announcementId: like.announcementId,
+          userId: newUserId,
+          announcementId: newAnnouncementId,
         }
       });
     }
@@ -561,6 +693,8 @@ async function importData() {
     console.error('❌ Ошибка при импорте:', error);
   } finally {
     await localPrisma.$disconnect();
+    // Восстанавливаем оригинальный DATABASE_URL
+    process.env.DATABASE_URL = originalDatabaseUrl;
   }
 }
 

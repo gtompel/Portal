@@ -15,12 +15,11 @@ interface ProtectedLayoutProps {
 const publicRoutes = ["/auth/login", "/auth/register", "/auth/error", "/auth/forgot-password", "/auth/reset-password"]
 
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
-  const { data: session, status, update } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
   const [hasInitialized, setHasInitialized] = useState(false)
-  const [retryCount, setRetryCount] = useState(0)
 
   // Кэшируем сессию для оптимизации
   const cachedSession = useMemo(() => {
@@ -41,17 +40,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     [pathname]
   )
 
-  // Функция для попытки восстановления сессии
-  const attemptSessionRecovery = async () => {
-    try {
-      await update()
-    } catch (error) {
-      if (retryCount < 2) {
-        setRetryCount(prev => prev + 1)
-        setTimeout(() => attemptSessionRecovery(), 1000 * (retryCount + 1))
-      }
-    }
-  }
+
 
   useEffect(() => {
     // Инициализация только один раз
@@ -65,29 +54,23 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
     // Только после инициализации проверяем аутентификацию
     if (!hasInitialized) return
 
-    // Если статус unauthenticated, пытаемся восстановить сессию
-    if (status === "unauthenticated" && retryCount < 2) {
-      attemptSessionRecovery()
-      return
-    }
-
-    // Если страница не публичная и нет сессии после попыток восстановления
-    if (!isPublicRoute && status === "unauthenticated" && retryCount >= 2) {
+    // Если страница не публичная и нет сессии - перенаправляем на вход
+    if (!isPublicRoute && status === "unauthenticated") {
       router.push("/auth/login")
     }
 
-    // Если есть сессия и пользователь на странице аутентификации, перенаправляем на главную
+    // Если есть сессия и пользователь на странице аутентификации - перенаправляем на главную
     if (isPublicRoute && status === "authenticated") {
       router.push("/")
     }
-  }, [status, router, pathname, isPublicRoute, hasInitialized, retryCount, update])
+  }, [status, router, pathname, isPublicRoute, hasInitialized])
 
-  // Показываем загрузку только при первой инициализации или при попытках восстановления
-  if (isLoading || (status === "unauthenticated" && retryCount < 2)) {
+  // Показываем загрузку только при первой инициализации
+  if (isLoading) {
     return (
       <LoadingScreen 
-        message={retryCount > 0 ? "Восстановление сессии..." : "Загрузка..."}
-        subMessage={retryCount > 0 ? `Попытка ${retryCount}/2` : "Пожалуйста, подождите"}
+        message="Загрузка..."
+        subMessage="Пожалуйста, подождите"
       />
     )
   }
