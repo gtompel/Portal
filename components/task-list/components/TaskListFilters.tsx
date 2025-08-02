@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { Search, X, Plus, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { User, TaskFilters } from "../types"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface TaskListFiltersProps {
   filters: TaskFilters
@@ -24,6 +25,14 @@ export function TaskListFilters({
   filtersChanged,
   onCreateTask
 }: TaskListFiltersProps) {
+  const [searchValue, setSearchValue] = useState(filters.searchTerm)
+  const debouncedSearchValue = useDebounce(searchValue, 300)
+
+  // Применяем debounced значение к фильтрам
+  useEffect(() => {
+    onFilterChange("searchTerm", debouncedSearchValue)
+  }, [debouncedSearchValue, onFilterChange])
+
   return (
     <div className="flex flex-col gap-4">
       {/* Строка поиска и кнопки управления */}
@@ -35,14 +44,14 @@ export function TaskListFilters({
             type="text"
             placeholder="Поиск..."
             className="pl-10 pr-10 w-full h-9 text-sm"
-            value={filters.searchTerm}
-            onChange={(e) => onFilterChange("searchTerm", e.target.value)}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
           />
-          {filters.searchTerm && (
+          {searchValue && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onFilterChange("searchTerm", "")}
+              onClick={() => setSearchValue("")}
               className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted"
             >
               <X className="h-4 w-4" />

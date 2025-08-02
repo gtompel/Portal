@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
+import { OptimizedQueries } from "@/lib/optimized-queries"
 
 // Кеширование для overview
 let overviewCache: any = null
@@ -25,6 +26,9 @@ export async function GET(request: Request) {
       return NextResponse.json(overviewCache)
     }
 
+    // Используем оптимизированные запросы
+    const dashboardData = await OptimizedQueries.getDashboardData(token.sub)
+    
     // Получаем данные о задачах за последние 6 месяцев
     const currentDate = new Date()
     const sixMonthsAgo = new Date(currentDate)

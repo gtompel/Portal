@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useToast } from "@/hooks/use-toast"
+import { useNotificationsBatch } from "@/hooks/use-notifications-batch"
 
 type Notification = {
   id: string
@@ -36,6 +37,15 @@ export default function Header() {
   const { toast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  
+  // Используем batch операции для уведомлений
+  const {
+    isLoading: isBatchLoading,
+    markAllAsRead: batchMarkAllAsRead,
+    markSelectedAsRead: batchMarkSelectedAsRead,
+    syncNotifications: batchSyncNotifications,
+    migrateNotifications: batchMigrateNotifications
+  } = useNotificationsBatch()
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -45,24 +55,17 @@ export default function Header() {
     }
   }, [session])
 
-  // Миграция уведомлений для старых задач
+  // Миграция уведомлений для старых задач (используем batch)
   const migrateNotifications = async () => {
     try {
       if (!session?.user?.id) return
-      await fetch('/api/notifications/migrate', { method: 'POST' })
-      // После миграции обновляем список уведомлений
-      fetchNotificationData()
-      toast({
-        title: "Успешно",
-        description: "Уведомления синхронизированы",
-      })
+      const result = await batchMigrateNotifications()
+      if (result) {
+        // После миграции обновляем список уведомлений
+        fetchNotificationData()
+      }
     } catch (error) {
       console.error("Ошибка при миграции уведомлений:", error)
-      toast({
-        title: "Ошибка",
-        description: "Не удалось синхронизировать уведомления",
-        variant: "destructive",
-      })
     }
   }
 
@@ -88,62 +91,30 @@ export default function Header() {
     }
   }
 
-  // Отметка как прочитанное с отправкой на сервер
+  // Отметка как прочитанное с отправкой на сервер (используем batch)
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch('/api/notifications/mark-read', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notificationIds: [id] }),
-      });
-
-      if (response.ok) {
+      const result = await batchMarkSelectedAsRead([id])
+      if (result) {
         setNotifications((prev) =>
           prev.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
         )
         setUnreadCount((prev) => Math.max(0, prev - 1))
-        toast({
-          title: "Успешно",
-          description: "Уведомление отмечено как прочитанное",
-        })
-      } else {
-        throw new Error("Не удалось отметить уведомление")
       }
     } catch (error) {
       console.error("Ошибка при отметке уведомления как прочитанного:", error)
-      toast({
-        title: "Ошибка",
-        description: "Не удалось отметить уведомление",
-        variant: "destructive",
-      })
     }
   }
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch('/api/notifications/mark-read', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markAll: true }),
-      });
-
-      if (response.ok) {
+      const result = await batchMarkAllAsRead()
+      if (result) {
         setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
         setUnreadCount(0)
-        toast({
-          title: "Успешно",
-          description: "Все уведомления отмечены как прочитанные",
-        })
-      } else {
-        throw new Error("Не удалось отметить все уведомления")
       }
     } catch (error) {
       console.error("Ошибка при отметке всех уведомлений как прочитанных:", error)
-      toast({
-        title: "Ошибка",
-        description: "Не удалось отметить все уведомления",
-        variant: "destructive",
-      })
     }
   }
 
@@ -175,8 +146,13 @@ export default function Header() {
             <div className="flex items-center justify-between p-4 border-b">
               <h4 className="font-medium">Уведомления</h4>
               {unreadCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                  Отметить все как прочитанные
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={markAllAsRead}
+                  disabled={isBatchLoading}
+                >
+                  {isBatchLoading ? "Обработка..." : "Отметить все как прочитанные"}
                 </Button>
               )}
             </div>

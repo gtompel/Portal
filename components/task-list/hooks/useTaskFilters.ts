@@ -4,12 +4,13 @@ import { useToast } from "@/hooks/use-toast"
 import { Task, TaskFilters } from "../types"
 import { DEFAULT_FILTERS } from "../constants"
 import { filterTasks, sortTasks, getStorageKey } from "../utils"
+import { useOptimizedState, useOptimizedFilter, useOptimizedSort } from "@/hooks/use-optimized-state"
 
 export function useTaskFilters(tasks: Task[]) {
   const { data: session } = useSession()
   const { toast } = useToast()
   
-  const [filters, setFilters] = useState<TaskFilters>(DEFAULT_FILTERS)
+  const [filters, setFilters] = useOptimizedState<TaskFilters>(DEFAULT_FILTERS)
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
   const [filtersChanged, setFiltersChanged] = useState(false)
 
@@ -70,26 +71,46 @@ export function useTaskFilters(tasks: Task[]) {
     setFiltersChanged(true)
   }, [])
 
-  // Применение фильтров и сортировки
-  const applyFilters = useCallback(() => {
-    const filtered = filterTasks(tasks, {
-      searchTerm: filters.searchTerm,
-      statusFilter: filters.statusFilter,
-      networkTypeFilter: filters.networkTypeFilter,
-      assigneeFilter: filters.assigneeFilter,
-      priorityFilter: filters.priorityFilter
-    })
+  // Применение фильтров и сортировки с оптимизацией
+  const filtered = useOptimizedFilter(tasks, (task) => {
+    const matchesSearch = !filters.searchTerm || 
+      task.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      (task.description && task.description.toLowerCase().includes(filters.searchTerm.toLowerCase()))
     
-    const sorted = sortTasks(filtered, filters.sortField, filters.sortDirection)
-    setFilteredTasks(sorted)
-  }, [tasks, filters])
+    const matchesStatus = filters.statusFilter === "all" || task.status === filters.statusFilter
+    const matchesNetwork = filters.networkTypeFilter === "all" || task.networkType === filters.networkTypeFilter
+    const matchesAssignee = filters.assigneeFilter === "all" || task.assignee?.id === filters.assigneeFilter
+    const matchesPriority = filters.priorityFilter === "all" || task.priority === filters.priorityFilter
+    
+    return Boolean(matchesSearch && matchesStatus && matchesNetwork && matchesAssignee && matchesPriority)
+  }, [filters.searchTerm, filters.statusFilter, filters.networkTypeFilter, filters.assigneeFilter, filters.priorityFilter])
 
-  // Применяем фильтры при изменении задач или фильтров
+  const sortedTasks = useOptimizedSort(filtered, (a, b) => {
+    const aValue = a[filters.sortField as keyof Task]
+    const bValue = b[filters.sortField as keyof Task]
+    
+    // Безопасное сравнение с учетом null/undefined
+    const aSafe = aValue ?? ""
+    const bSafe = bValue ?? ""
+    
+    if (filters.sortDirection === "asc") {
+      return aSafe > bSafe ? 1 : -1
+    } else {
+      return aSafe < bSafe ? 1 : -1
+    }
+  }, [filters.sortField, filters.sortDirection])
+
+  // Обновляем отфильтрованные задачи
+  useEffect(() => {
+    setFilteredTasks(sortedTasks)
+  }, [sortedTasks])
+
+  // Применяем фильтры при изменении задач
   useEffect(() => {
     if (tasks.length > 0) {
-      applyFilters()
+      // Фильтрация и сортировка уже оптимизированы выше
     }
-  }, [tasks, filters, applyFilters])
+  }, [tasks])
 
   // Загружаем сохраненные фильтры при инициализации
   useEffect(() => {

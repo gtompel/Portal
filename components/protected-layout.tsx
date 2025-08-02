@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import Sidebar from "@/components/sidebar"
 import Header from "@/components/header"
 import LoadingScreen from "@/components/loading-screen"
+import { sessionCache } from "@/lib/session-cache"
 
 interface ProtectedLayoutProps {
   children: ReactNode
@@ -20,6 +21,20 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [hasInitialized, setHasInitialized] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+
+  // Кэшируем сессию для оптимизации
+  const cachedSession = useMemo(() => {
+    if (session?.user?.id) {
+      const cacheKey = `session_${session.user.id}`
+      const cached = sessionCache.get(cacheKey)
+      if (cached) {
+        return cached
+      }
+      sessionCache.set(cacheKey, session, 5 * 60 * 1000) // 5 минут
+      return session
+    }
+    return null
+  }, [session])
 
   const isPublicRoute = useMemo(() => 
     publicRoutes.includes(pathname) || pathname?.startsWith("/auth/reset-password"), 
