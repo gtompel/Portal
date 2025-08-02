@@ -1,3 +1,5 @@
+"use client"
+
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -52,7 +54,7 @@ export function useTaskForms() {
       priority: task.priority,
       status: task.status,
       networkType: task.networkType,
-      dueDate: task.dueDate || "",
+      dueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : "",
       assigneeId: task.assignee?.id || "",
     })
   }, [editForm])

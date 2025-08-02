@@ -1,20 +1,24 @@
 export type Task = {
   id: string
   title: string
-  description?: string
+  description: string | null
   assignee: {
     id: string
     name: string
-    avatar?: string
+    avatar: string | null
     initials: string
   } | null
   status: "NEW" | "IN_PROGRESS" | "REVIEW" | "COMPLETED"
   priority: "LOW" | "MEDIUM" | "HIGH"
   networkType: "EMVS" | "INTERNET" | "ASZI"
-  dueDate: string | null
-  createdAt: string
-  taskNumber?: number
+  dueDate: Date | null
+  createdAt: Date
+  taskNumber: number | null
   isArchived: boolean
+  creator: {
+    id: string
+    name: string
+  }
 }
 
 export type User = {

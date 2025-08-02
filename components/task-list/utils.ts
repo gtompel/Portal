@@ -166,9 +166,9 @@ export const filterTasks = (
 }
 
 // Функция для форматирования даты
-export const formatDate = (dateString: string | null): string => {
-  if (!dateString) return "-"
-  return new Date(dateString).toLocaleDateString("ru-RU")
+export const formatDate = (date: Date | null): string => {
+  if (!date) return "-"
+  return date.toLocaleDateString("ru-RU")
 }
 
 // Функция для получения ключа LocalStorage

@@ -12,6 +12,7 @@ import { useTaskList } from "./hooks/useTaskList"
 import { useTaskFilters } from "./hooks/useTaskFilters"
 import { useTaskActions } from "./hooks/useTaskActions"
 import { Task, TaskFormData } from "./types"
+import { createTask as createTaskAction, updateTask as updateTaskAction, deleteTask as deleteTaskAction, archiveTask as archiveTaskAction, restoreTask as restoreTaskAction, updateTaskStatus as updateTaskStatusAction } from "@/lib/actions"
 
 export function TaskListRefactored() {
   const { data: session } = useSession()
@@ -113,25 +114,101 @@ export function TaskListRefactored() {
     setTaskToDelete(null)
   }
 
-  // Обработчики CRUD операций
+  // Обработчики CRUD операций с Server Actions
   const handleCreateTaskSubmit = async (data: TaskFormData): Promise<boolean> => {
-    const result = await createTask(data)
-    return result ?? false
+    try {
+      // Создаем FormData для Server Action
+      const formData = new FormData()
+      formData.append('title', data.title)
+      formData.append('description', data.description || '')
+      formData.append('status', data.status)
+      formData.append('priority', data.priority)
+      formData.append('networkType', data.networkType)
+      formData.append('assigneeId', data.assigneeId || '')
+      if (data.dueDate) {
+        formData.append('dueDate', data.dueDate)
+      }
+
+      const result = await createTaskAction(formData)
+      if (result.success && result.task) {
+        // Обновляем локальное состояние
+        setTasks(prev => [result.task, ...prev])
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Server Action error:', error)
+      // Fallback к старому API
+      const result = await createTask(data)
+      return result ?? false
+    }
   }
 
   const handleUpdateTask = async (taskId: string, data: TaskFormData): Promise<boolean> => {
-    const result = await updateTask(taskId, data)
-    return result ?? false
+    try {
+      // Создаем FormData для Server Action
+      const formData = new FormData()
+      formData.append('title', data.title)
+      formData.append('description', data.description || '')
+      formData.append('status', data.status)
+      formData.append('priority', data.priority)
+      formData.append('networkType', data.networkType)
+      formData.append('assigneeId', data.assigneeId || '')
+      if (data.dueDate) {
+        formData.append('dueDate', data.dueDate)
+      }
+
+      const result = await updateTaskAction(taskId, formData)
+      if (result.success && result.task) {
+        // Обновляем локальное состояние
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? result.task : task
+        ))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Server Action error:', error)
+      // Fallback к старому API
+      const result = await updateTask(taskId, data)
+      return result ?? false
+    }
   }
 
   const handleDeleteTaskConfirm = async (taskId: string): Promise<boolean> => {
-    const result = await deleteTask(taskId)
-    return result ?? false
+    try {
+      const result = await deleteTaskAction(taskId)
+      if (result.success) {
+        // Обновляем локальное состояние
+        setTasks(prev => prev.filter(task => task.id !== taskId))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Server Action error:', error)
+      // Fallback к старому API
+      const result = await deleteTask(taskId)
+      return result ?? false
+    }
   }
 
   // Обработчики быстрых обновлений
   const handleQuickUpdateStatus = async (taskId: string, status: Task["status"]) => {
-    return await quickUpdateStatus(taskId, status)
+    try {
+      const result = await updateTaskStatusAction(taskId, status)
+      if (result.success) {
+        // Обновляем локальное состояние
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? { ...task, status } : task
+        ))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Server Action error:', error)
+      // Fallback к старому API
+      return await quickUpdateStatus(taskId, status)
+    }
   }
 
   const handleQuickUpdatePriority = async (taskId: string, priority: Task["priority"]) => {
@@ -147,11 +224,39 @@ export function TaskListRefactored() {
   }
 
   const handleArchiveTask = async (taskId: string) => {
-    return await archiveTask(taskId)
+    try {
+      const result = await archiveTaskAction(taskId)
+      if (result.success) {
+        // Обновляем локальное состояние
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? { ...task, isArchived: true } : task
+        ))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Server Action error:', error)
+      // Fallback к старому API
+      return await archiveTask(taskId)
+    }
   }
 
   const handleRestoreTask = async (taskId: string) => {
-    return await restoreTask(taskId)
+    try {
+      const result = await restoreTaskAction(taskId)
+      if (result.success) {
+        // Обновляем локальное состояние
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? { ...task, isArchived: false } : task
+        ))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Server Action error:', error)
+      // Fallback к старому API
+      return await restoreTask(taskId)
+    }
   }
 
   return (

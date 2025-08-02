@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useToast } from "@/hooks/use-toast"

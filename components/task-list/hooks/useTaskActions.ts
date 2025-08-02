@@ -1,8 +1,11 @@
+"use client"
+
 import { useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useToast } from "@/hooks/use-toast"
 import { Task, TaskFormData } from "../types"
 import { getInitials } from "../utils"
+import { createTask as createTaskAction, updateTask as updateTaskAction, deleteTask as deleteTaskAction, archiveTask as archiveTaskAction, restoreTask as restoreTaskAction, updateTaskStatus as updateTaskStatusAction } from "@/lib/actions"
 
 export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Task[]>>) {
   const { data: session } = useSession()
@@ -12,7 +15,7 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [isDeletingTask, setIsDeletingTask] = useState(false)
 
-  // Создание задачи
+  // Создание задачи с Server Action
   const createTask = useCallback(async (data: TaskFormData) => {
     if (!session?.user?.id) {
       toast({
@@ -26,55 +29,54 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     setIsAddingTask(true)
 
     try {
-      const assigneeId = data.assigneeId === "" || data.assigneeId === "not_assigned" ? null : data.assigneeId
-
-      const response = await fetch("/api/tasks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...data,
-          assigneeId,
-          creatorId: session.user.id,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Не удалось создать настройку АРМ")
+      // Создаем FormData для Server Action
+      const formData = new FormData()
+      formData.append('title', data.title)
+      formData.append('description', data.description || '')
+      formData.append('status', data.status)
+      formData.append('priority', data.priority)
+      formData.append('networkType', data.networkType)
+      formData.append('assigneeId', data.assigneeId || '')
+      if (data.dueDate) {
+        formData.append('dueDate', data.dueDate)
       }
 
-      const newTask = await response.json()
+      const result = await createTaskAction(formData)
+      
+      if (result.success && result.task) {
+        const formattedTask: Task = {
+          id: result.task.id,
+          title: result.task.title,
+          description: result.task.description,
+          assignee: result.task.assignee
+            ? {
+                id: result.task.assignee.id,
+                name: result.task.assignee.name,
+                avatar: result.task.assignee.avatar,
+                initials: result.task.assignee.initials || getInitials(result.task.assignee.name),
+              }
+            : null,
+          status: result.task.status,
+          priority: result.task.priority,
+          networkType: result.task.networkType,
+          dueDate: result.task.dueDate,
+          createdAt: result.task.createdAt,
+          taskNumber: result.task.taskNumber,
+          isArchived: result.task.isArchived || false,
+          creator: result.task.creator,
+        }
 
-      const formattedTask: Task = {
-        id: newTask.id,
-        title: newTask.title,
-        description: newTask.description,
-        assignee: newTask.assignee
-          ? {
-              id: newTask.assignee.id,
-              name: newTask.assignee.name,
-              avatar: newTask.assignee.avatar,
-              initials: newTask.assignee.initials || getInitials(newTask.assignee.name),
-            }
-          : null,
-        status: newTask.status,
-        priority: newTask.priority,
-        networkType: newTask.networkType,
-        dueDate: newTask.dueDate,
-        createdAt: newTask.createdAt,
-        taskNumber: newTask.taskNumber,
-        isArchived: newTask.isArchived || false,
+        setTasks((prev) => [formattedTask, ...prev])
+
+        toast({
+          title: "Успешно",
+          description: "Настройка АРМ успешно создана",
+        })
+
+        return true
+      } else {
+        throw new Error(result.error || "Не удалось создать настройку АРМ")
       }
-
-      setTasks((prev) => [formattedTask, ...prev])
-
-      toast({
-        title: "Успешно",
-        description: "Настройка АРМ успешно создана",
-      })
-
-      return true
     } catch (err) {
       console.error("Ошибка при создании настройки АРМ:", err)
       toast({
@@ -88,60 +90,59 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     }
   }, [session?.user?.id, setTasks, toast])
 
-  // Обновление задачи
+  // Обновление задачи с Server Action
   const updateTask = useCallback(async (taskId: string, data: TaskFormData) => {
     setIsEditingTask(true)
 
     try {
-      const assigneeId = data.assigneeId === "not_assigned" ? null : data.assigneeId
-
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...data,
-          assigneeId,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Не удалось обновить настройку АРМ")
+      // Создаем FormData для Server Action
+      const formData = new FormData()
+      formData.append('title', data.title)
+      formData.append('description', data.description || '')
+      formData.append('status', data.status)
+      formData.append('priority', data.priority)
+      formData.append('networkType', data.networkType)
+      formData.append('assigneeId', data.assigneeId || '')
+      if (data.dueDate) {
+        formData.append('dueDate', data.dueDate)
       }
 
-      const updatedTask = await response.json()
+      const result = await updateTaskAction(taskId, formData)
+      
+      if (result.success && result.task) {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  title: result.task.title,
+                  description: result.task.description,
+                  assignee: result.task.assignee
+                    ? {
+                        id: result.task.assignee.id,
+                        name: result.task.assignee.name,
+                        avatar: result.task.assignee.avatar,
+                        initials: result.task.assignee.initials || getInitials(result.task.assignee.name),
+                      }
+                    : null,
+                  status: result.task.status,
+                  priority: result.task.priority,
+                  networkType: result.task.networkType,
+                  dueDate: result.task.dueDate,
+                }
+              : task,
+          ),
+        )
 
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                title: updatedTask.title,
-                description: updatedTask.description,
-                assignee: updatedTask.assignee
-                  ? {
-                      id: updatedTask.assignee.id,
-                      name: updatedTask.assignee.name,
-                      avatar: updatedTask.assignee.avatar,
-                      initials: updatedTask.assignee.initials || getInitials(updatedTask.assignee.name),
-                    }
-                  : null,
-                status: updatedTask.status,
-                priority: updatedTask.priority,
-                networkType: updatedTask.networkType,
-                dueDate: updatedTask.dueDate,
-              }
-            : task,
-        ),
-      )
+        toast({
+          title: "Успешно",
+          description: "Настройка АРМ успешно обновлена",
+        })
 
-      toast({
-        title: "Успешно",
-        description: "Настройка АРМ успешно обновлена",
-      })
-
-      return true
+        return true
+      } else {
+        throw new Error(result.error || "Не удалось обновить настройку АРМ")
+      }
     } catch (err) {
       console.error("Ошибка при обновлении настройки АРМ:", err)
       toast({
@@ -155,27 +156,25 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     }
   }, [setTasks, toast])
 
-  // Удаление задачи
+  // Удаление задачи с Server Action
   const deleteTask = useCallback(async (taskId: string) => {
     setIsDeletingTask(true)
 
     try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "DELETE",
-      })
+      const result = await deleteTaskAction(taskId)
+      
+      if (result.success) {
+        setTasks((prev) => prev.filter((task) => task.id !== taskId))
 
-      if (!response.ok) {
-        throw new Error("Не удалось удалить настройку АРМ")
+        toast({
+          title: "Успешно",
+          description: "Настройка АРМ успешно удалена",
+        })
+
+        return true
+      } else {
+        throw new Error(result.error || "Не удалось удалить настройку АРМ")
       }
-
-      setTasks((prev) => prev.filter((task) => task.id !== taskId))
-
-      toast({
-        title: "Успешно",
-        description: "Настройка АРМ успешно удалена",
-      })
-
-      return true
     } catch (err) {
       console.error("Ошибка при удалении настройки АРМ:", err)
       toast({
@@ -189,7 +188,7 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     }
   }, [setTasks, toast])
 
-  // Быстрое обновление статуса
+  // Быстрое обновление статуса с Server Action
   const quickUpdateStatus = useCallback(async (taskId: string, newStatus: Task["status"]) => {
     try {
       setTasks((prev) =>
@@ -198,29 +197,18 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
         )
       )
 
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: newStatus,
-        }),
-      })
+      const result = await updateTaskStatusAction(taskId, newStatus)
+      
+      if (result.success) {
+        toast({
+          title: "Статус обновлен",
+          description: `Статус изменен на "${newStatus}"`,
+        })
 
-      if (!response.ok) {
-        throw new Error("Не удалось обновить статус")
+        return true
+      } else {
+        throw new Error(result.error || "Не удалось обновить статус")
       }
-
-      const updatedTask = await response.json()
-      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task))
-
-      toast({
-        title: "Статус обновлен",
-        description: `Статус изменен на "${newStatus}"`,
-      })
-
-      return true
     } catch (error) {
       console.error("Ошибка при обновлении статуса:", error)
       toast({
@@ -334,7 +322,7 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
             assignee: {
               id: user.id,
               name: user.name,
-              avatar: (task.assignee && task.assignee.id === user.id) ? task.assignee.avatar : undefined,
+              avatar: (task.assignee && task.assignee.id === user.id) ? task.assignee.avatar : null,
               initials: getInitials(user.name),
             },
           }
@@ -362,7 +350,7 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     }
   }, [setTasks, toast])
 
-  // Архивирование задачи
+  // Архивирование задачи с Server Action
   const archiveTask = useCallback(async (taskId: string) => {
     try {
       setTasks((prev) =>
@@ -371,29 +359,18 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
         )
       )
 
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          isArchived: true,
-        }),
-      })
+      const result = await archiveTaskAction(taskId)
+      
+      if (result.success) {
+        toast({
+          title: "Задача архивирована",
+          description: "Задача успешно перемещена в архив",
+        })
 
-      if (!response.ok) {
-        throw new Error("Не удалось архивировать задачу")
+        return true
+      } else {
+        throw new Error(result.error || "Не удалось архивировать задачу")
       }
-
-      const updatedTask = await response.json()
-      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task))
-
-      toast({
-        title: "Задача архивирована",
-        description: "Задача успешно перемещена в архив",
-      })
-
-      return true
     } catch (error) {
       console.error("Ошибка при архивировании задачи:", error)
       toast({
@@ -405,7 +382,7 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     }
   }, [setTasks, toast])
 
-  // Восстановление задачи
+  // Восстановление задачи с Server Action
   const restoreTask = useCallback(async (taskId: string) => {
     try {
       setTasks((prev) =>
@@ -414,29 +391,18 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
         )
       )
 
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          isArchived: false,
-        }),
-      })
+      const result = await restoreTaskAction(taskId)
+      
+      if (result.success) {
+        toast({
+          title: "Задача восстановлена",
+          description: "Задача успешно восстановлена из архива",
+        })
 
-      if (!response.ok) {
-        throw new Error("Не удалось восстановить задачу")
+        return true
+      } else {
+        throw new Error(result.error || "Не удалось восстановить задачу")
       }
-
-      const updatedTask = await response.json()
-      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task))
-
-      toast({
-        title: "Задача восстановлена",
-        description: "Задача успешно восстановлена из архива",
-      })
-
-      return true
     } catch (error) {
       console.error("Ошибка при восстановлении задачи:", error)
       toast({
