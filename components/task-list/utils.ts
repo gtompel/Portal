@@ -166,9 +166,24 @@ export const filterTasks = (
 }
 
 // Функция для форматирования даты
-export const formatDate = (date: Date | null): string => {
+export const formatDate = (date: Date | string | null): string => {
   if (!date) return "-"
-  return date.toLocaleDateString("ru-RU")
+  
+  let dateObj: Date
+  if (typeof date === 'string') {
+    dateObj = new Date(date)
+  } else if (date instanceof Date) {
+    dateObj = date
+  } else {
+    return "-"
+  }
+  
+  // Проверяем, что дата валидна
+  if (isNaN(dateObj.getTime())) {
+    return "-"
+  }
+  
+  return dateObj.toLocaleDateString("ru-RU")
 }
 
 // Функция для получения ключа LocalStorage

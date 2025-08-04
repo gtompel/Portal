@@ -15,6 +15,7 @@ export function useTaskFilters(tasks: Task[]) {
   const [filters, setFilters] = useOptimizedState<TaskFilters>(DEFAULT_FILTERS)
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
   const [filtersChanged, setFiltersChanged] = useState(false)
+  const [filtersLoaded, setFiltersLoaded] = useState(false)
 
   // Сохранение фильтров в LocalStorage
   const saveFiltersToStorage = useCallback((userId: string) => {
@@ -38,8 +39,10 @@ export function useTaskFilters(tasks: Task[]) {
         const parsedFilters = JSON.parse(savedFilters)
         setFilters(parsedFilters)
       }
+      setFiltersLoaded(true)
     } catch (error) {
       console.warn('Не удалось загрузить настройки фильтров:', error)
+      setFiltersLoaded(true)
     }
   }, [])
 
@@ -143,6 +146,7 @@ export function useTaskFilters(tasks: Task[]) {
     filters,
     filteredTasks,
     filtersChanged,
+    filtersLoaded,
     updateFilter,
     handleSort,
     resetFiltersToDefaults

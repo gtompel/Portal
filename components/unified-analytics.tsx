@@ -700,7 +700,7 @@ export function UnifiedAnalytics() {
                             <div>
                               <p className="text-sm font-medium">{task.title}</p>
                               <p className="text-xs text-muted-foreground">
-                                {task.assignee?.displayName || task.assignee?.name} • Срок: {new Date(task.dueDate).toLocaleDateString("ru-RU")}
+                                {task.assignee?.displayName || task.assignee?.name} • Срок: {task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "Не указан"}
                               </p>
                             </div>
                           </div>
@@ -745,7 +745,7 @@ export function UnifiedAnalytics() {
                             <div>
                               <p className="text-sm font-medium">{task.title}</p>
                               <p className="text-xs text-muted-foreground">
-                                {task.assignee?.displayName || task.assignee?.name} • Срок: {new Date(task.dueDate).toLocaleDateString("ru-RU")}
+                                {task.assignee?.displayName || task.assignee?.name} • Срок: {task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "Не указан"}
                               </p>
                             </div>
                           </div>

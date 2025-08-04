@@ -917,7 +917,7 @@ export function EventCalendar() {
                                    }
                                  </Badge>
                                 <span className="text-xs text-muted-foreground">
-                                  {item.date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                                  {new Date(item.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
                                 </span>
                               </div>
                               <h4 className="font-medium text-sm">{item.title}</h4>
@@ -946,7 +946,7 @@ export function EventCalendar() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>
-                    {selectedDate.toLocaleDateString("ru-RU", {
+                    {new Date(selectedDate).toLocaleDateString("ru-RU", {
                       weekday: "long",
                       day: "numeric",
                       month: "long",
@@ -984,7 +984,7 @@ export function EventCalendar() {
                     <div>
                       <CardTitle className="text-primary">Выбранная задача</CardTitle>
                       <CardDescription>
-                        Срок: {new Date(selectedTask.dueDate).toLocaleDateString("ru-RU")}
+                        Срок: {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString("ru-RU") : "Не указан"}
                       </CardDescription>
                     </div>
                     <Badge variant="outline" className={getTaskPriorityColor(selectedTask.priority)}>
@@ -1090,7 +1090,7 @@ export function EventCalendar() {
                           <div>
                             <CardTitle>{task.title}</CardTitle>
                             <CardDescription>
-                              Срок: {new Date(task.dueDate).toLocaleDateString("ru-RU")}
+                              Срок: {task.dueDate ? new Date(task.dueDate).toLocaleDateString("ru-RU") : "Не указан"}
                             </CardDescription>
                           </div>
                           <Badge variant="outline" className={getTaskPriorityColor(task.priority)}>

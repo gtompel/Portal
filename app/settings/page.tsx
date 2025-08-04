@@ -220,12 +220,29 @@ export default function SettingsPage() {
 
       const uploadResult = await uploadResponse.json()
       
+      // Сохраняем аватар в базе данных
+      const saveResponse = await fetch(`/api/users/${profile.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          avatar: uploadResult.url
+        }),
+      })
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json()
+        console.error("Ошибка сохранения аватара:", errorData)
+        throw new Error(errorData.error || "Ошибка сохранения аватара")
+      }
+
       // Обновляем профиль с новым URL аватара
       setProfile(prev => ({ ...prev, avatar: uploadResult.url }))
       
       toast({
         title: "Успешно",
-        description: "Аватар загружен",
+        description: "Аватар загружен и сохранен",
       })
     } catch (error) {
       console.error("Ошибка загрузки аватара:", error)
@@ -243,16 +260,42 @@ export default function SettingsPage() {
     fileInputRef.current?.click()
   }
 
-  const removeAvatar = () => {
-    setAvatarPreview(null)
-    setProfile(prev => ({ ...prev, avatar: "" }))
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
+  const removeAvatar = async () => {
+    try {
+      // Сохраняем удаление аватара в базе данных
+      const saveResponse = await fetch(`/api/users/${profile.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          avatar: ""
+        }),
+      })
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json()
+        console.error("Ошибка удаления аватара:", errorData)
+        throw new Error(errorData.error || "Ошибка удаления аватара")
+      }
+
+      setAvatarPreview(null)
+      setProfile(prev => ({ ...prev, avatar: "" }))
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+      toast({
+        title: "Успешно",
+        description: "Аватар удален",
+      })
+    } catch (error) {
+      console.error("Ошибка удаления аватара:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить аватар",
+        variant: "destructive"
+      })
     }
-    toast({
-      title: "Успешно",
-      description: "Аватар удален",
-    })
   }
 
   const getInitials = (name: string) => {

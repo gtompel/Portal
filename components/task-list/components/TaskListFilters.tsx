@@ -28,6 +28,13 @@ export function TaskListFilters({
   const [searchValue, setSearchValue] = useState(filters.searchTerm)
   const debouncedSearchValue = useDebounce(searchValue, 300)
 
+  // Синхронизируем локальное состояние с пропсами
+  useEffect(() => {
+    if (filters.searchTerm !== searchValue) {
+      setSearchValue(filters.searchTerm)
+    }
+  }, [filters.searchTerm, searchValue])
+
   // Применяем debounced значение к фильтрам
   useEffect(() => {
     onFilterChange("searchTerm", debouncedSearchValue)

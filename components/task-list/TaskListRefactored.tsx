@@ -41,6 +41,7 @@ export function TaskListRefactored() {
     filters,
     filteredTasks,
     filtersChanged,
+    filtersLoaded,
     updateFilter,
     handleSort,
     resetFiltersToDefaults
@@ -269,14 +270,21 @@ export function TaskListRefactored() {
         />
         
         {/* Фильтры */}
-        <TaskListFilters
-          filters={filters}
-          users={users}
-          onFilterChange={updateFilter}
-          onResetFilters={resetFiltersToDefaults}
-          filtersChanged={filtersChanged}
-          onCreateTask={handleCreateTask}
-        />
+        {filtersLoaded ? (
+          <TaskListFilters
+            filters={filters}
+            users={users}
+            onFilterChange={updateFilter}
+            onResetFilters={resetFiltersToDefaults}
+            filtersChanged={filtersChanged}
+            onCreateTask={handleCreateTask}
+          />
+        ) : (
+          <div className="flex items-center justify-center p-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <span className="ml-2 text-sm text-muted-foreground">Загрузка фильтров...</span>
+          </div>
+        )}
         
         {/* Таблица */}
         <TaskListTable

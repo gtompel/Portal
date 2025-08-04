@@ -11,8 +11,8 @@ export type Task = {
   status: "NEW" | "IN_PROGRESS" | "REVIEW" | "COMPLETED"
   priority: "LOW" | "MEDIUM" | "HIGH"
   networkType: "EMVS" | "INTERNET" | "ASZI"
-  dueDate: Date | null
-  createdAt: Date
+  dueDate: Date | string | null
+  createdAt: Date | string
   taskNumber: number | null
   isArchived: boolean
   creator: {
