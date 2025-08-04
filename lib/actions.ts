@@ -23,6 +23,23 @@ export async function createTask(formData: FormData) {
   const dueDate = formData.get('dueDate') as string
 
   try {
+    // Проверяем, существует ли пользователь по email
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email! }
+    })
+    
+    if (!user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    // Получаем максимальный номер задачи
+    const maxTask = await prisma.task.aggregate({
+      where: { isArchived: false },
+      _max: { taskNumber: true }
+    })
+    
+    const newTaskNumber = (maxTask._max.taskNumber || 0) + 1
+
     const task = await prisma.task.create({
       data: {
         title,
@@ -31,8 +48,9 @@ export async function createTask(formData: FormData) {
         priority: (priority as TaskPriority) || 'MEDIUM',
         networkType: (networkType as NetworkType) || 'INTERNET',
         dueDate: dueDate ? new Date(dueDate) : null,
-        assigneeId: assigneeId || null,
-        creatorId: session.user.id
+        assigneeId: assigneeId && assigneeId.trim() !== "" && assigneeId !== "not_assigned" ? assigneeId : null,
+        creatorId: user.id,
+        taskNumber: newTaskNumber
       },
       include: {
         assignee: {
@@ -86,7 +104,7 @@ export async function updateTask(taskId: string, formData: FormData) {
         priority: priority as TaskPriority,
         networkType: networkType as NetworkType,
         dueDate: dueDate ? new Date(dueDate) : null,
-        assigneeId: assigneeId || null
+        assigneeId: assigneeId && assigneeId.trim() !== "" ? assigneeId : null
       },
       include: {
         assignee: {

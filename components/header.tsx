@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Calendar, CheckSquare, MessageSquare } from "lucide-react"
+import { Bell, Calendar, CheckSquare, MessageSquare, CheckCheck } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import {
@@ -148,11 +148,17 @@ export default function Header() {
               {unreadCount > 0 && (
                 <Button 
                   variant="ghost" 
-                  size="sm" 
+                  size="icon" 
                   onClick={markAllAsRead}
                   disabled={isBatchLoading}
+                  className="h-8 w-8"
+                  title="Отметить все как прочитанные"
                 >
-                  {isBatchLoading ? "Обработка..." : "Отметить все как прочитанные"}
+                  {isBatchLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                  ) : (
+                    <CheckCheck className="h-4 w-4" />
+                  )}
                 </Button>
               )}
             </div>

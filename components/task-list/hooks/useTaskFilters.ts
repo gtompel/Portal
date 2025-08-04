@@ -31,7 +31,10 @@ export function useTaskFilters(tasks: Task[]) {
 
   // Загрузка фильтров из LocalStorage
   const loadFiltersFromStorage = useCallback((userId: string) => {
-    if (!userId) return
+    if (!userId) {
+      setFiltersLoaded(true)
+      return
+    }
     
     try {
       const savedFilters = localStorage.getItem(getStorageKey(userId))
@@ -46,9 +49,23 @@ export function useTaskFilters(tasks: Task[]) {
     }
   }, [])
 
+  // Проверка, есть ли активные фильтры
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filters.searchTerm !== "" ||
+      filters.statusFilter !== "all" ||
+      filters.networkTypeFilter !== "all" ||
+      filters.assigneeFilter !== "all" ||
+      filters.priorityFilter !== "all" ||
+      filters.sortField !== "taskNumber" ||
+      filters.sortDirection !== "desc"
+    )
+  }, [filters])
+
   // Сброс фильтров к дефолтным значениям
   const resetFiltersToDefaults = useCallback(() => {
     setFilters(DEFAULT_FILTERS)
+    setFiltersChanged(false)
     
     if (session?.user?.id) {
       localStorage.removeItem(getStorageKey(session.user.id))
@@ -63,7 +80,6 @@ export function useTaskFilters(tasks: Task[]) {
   // Обновление фильтров
   const updateFilter = useCallback((key: keyof TaskFilters, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }))
-    setFiltersChanged(true)
   }, [])
 
   // Изменение сортировки
@@ -73,7 +89,6 @@ export function useTaskFilters(tasks: Task[]) {
       sortField: field,
       sortDirection: prev.sortField === field && prev.sortDirection === "asc" ? "desc" : "asc"
     }))
-    setFiltersChanged(true)
   }, [])
 
   // Применение фильтров и сортировки с оптимизацией
@@ -121,31 +136,27 @@ export function useTaskFilters(tasks: Task[]) {
   useEffect(() => {
     if (session?.user?.id) {
       loadFiltersFromStorage(session.user.id)
+    } else {
+      // Если пользователь не авторизован, все равно помечаем фильтры как загруженные
+      setFiltersLoaded(true)
     }
   }, [session?.user?.id, loadFiltersFromStorage])
 
   // Автоматически сохраняем фильтры при их изменении
   useEffect(() => {
-    if (session?.user?.id && filtersChanged) {
+    if (session?.user?.id && hasActiveFilters) {
       const timeoutId = setTimeout(() => {
         saveFiltersToStorage(session.user.id)
       }, 1000)
 
       return () => clearTimeout(timeoutId)
     }
-  }, [filters, session?.user?.id, filtersChanged, saveFiltersToStorage])
-
-  // Отслеживаем изменения фильтров
-  useEffect(() => {
-    if (session?.user?.id) {
-      setFiltersChanged(true)
-    }
-  }, [filters, session?.user?.id])
+  }, [filters, session?.user?.id, hasActiveFilters, saveFiltersToStorage])
 
   return {
     filters,
     filteredTasks,
-    filtersChanged,
+    filtersChanged: hasActiveFilters,
     filtersLoaded,
     updateFilter,
     handleSort,

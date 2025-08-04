@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
           priority: body.priority || "LOW",
           networkType: body.networkType || "EMVS",
           dueDate: body.dueDate ? new Date(body.dueDate) : null,
-          assigneeId: body.assigneeId || null,
+          assigneeId: body.assigneeId && body.assigneeId.trim() !== "" ? body.assigneeId : null,
           creatorId: body.creatorId,
           taskNumber: newTaskNumber,
         },

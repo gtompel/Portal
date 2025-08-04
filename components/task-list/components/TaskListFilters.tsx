@@ -30,10 +30,14 @@ export function TaskListFilters({
 
   // Синхронизируем локальное состояние с пропсами
   useEffect(() => {
-    if (filters.searchTerm !== searchValue) {
-      setSearchValue(filters.searchTerm)
-    }
-  }, [filters.searchTerm, searchValue])
+    setSearchValue(filters.searchTerm)
+  }, [filters.searchTerm])
+
+  // Обработчик сброса фильтров
+  const handleResetFilters = () => {
+    setSearchValue("") // Принудительно очищаем поиск
+    onResetFilters()
+  }
 
   // Применяем debounced значение к фильтрам
   useEffect(() => {
@@ -82,9 +86,10 @@ export function TaskListFilters({
           <Button
             variant="outline"
             size="sm"
-            onClick={onResetFilters}
+            onClick={handleResetFilters}
+            disabled={!filtersChanged}
             className={`gap-1 h-9 text-sm ${filtersChanged ? 'border-orange-500 text-orange-600' : ''}`}
-            title={filtersChanged ? 'Есть несохраненные изменения' : 'Сбросить фильтры'}
+            title={filtersChanged ? 'Есть активные фильтры' : 'Сбросить фильтры'}
           >
             <RotateCcw className="h-4 w-4" />
             <span className="hidden sm:inline">Сброс</span>

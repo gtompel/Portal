@@ -362,7 +362,13 @@ export function UnifiedAnalytics() {
                        <CartesianGrid strokeDasharray="3 3" />
                        <XAxis dataKey="name" />
                        <YAxis />
-                       <Tooltip />
+                       <Tooltip 
+                         formatter={(value: any, name: any) => [
+                           `${value} задач`, 
+                           'Количество'
+                         ]}
+                         labelFormatter={(label: any) => `Приоритет: ${label}`}
+                       />
                        <Bar dataKey="value" fill="#8884d8">
                          {data.details.tasksByPriority.map((entry, index) => (
                            <Cell key={`cell-${index}`} fill={entry.color} />
