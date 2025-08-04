@@ -28,4 +28,4 @@ next-env.d.ts
 
 # json
 data-export.json
-/public/uploads
+/public/uploads/
