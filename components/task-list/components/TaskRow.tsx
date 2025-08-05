@@ -57,7 +57,10 @@ function TaskRowComponent({
       <TableCell className="font-medium">
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="flex items-center gap-2 max-w-[250px]">
+            <div 
+              className="flex items-center gap-2 max-w-[250px] cursor-pointer hover:text-primary transition-colors"
+              onClick={() => onEdit(task)}
+            >
               <span className="truncate">{task.title}</span>
               {task.isArchived && (
                 <Badge variant="secondary" className="text-xs flex-shrink-0">

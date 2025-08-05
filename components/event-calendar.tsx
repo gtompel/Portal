@@ -77,6 +77,7 @@ export function EventCalendar() {
   const [date, setDate] = useState<Date>(new Date())
   const [view, setView] = useState<"year" | "month" | "day">("year")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [events, setEvents] = useState<Event[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -116,6 +117,13 @@ export function EventCalendar() {
     fetchTasks()
     fetchUsers()
   }, [])
+
+  // Обновляем форму при изменении выбранной даты
+  useEffect(() => {
+    if (selectedDate) {
+      form.setValue("date", selectedDate)
+    }
+  }, [selectedDate, form])
 
   const fetchEvents = async () => {
     try {
@@ -221,7 +229,7 @@ export function EventCalendar() {
         body: JSON.stringify({
           title: data.title,
           description: data.description || "",
-          date: data.date.toISOString(),
+          date: selectedDate ? selectedDate.toISOString().split('T')[0] : data.date.toISOString().split('T')[0],
           startTime: data.startTime,
           endTime: data.endTime,
           location: data.location || "",
@@ -277,7 +285,9 @@ export function EventCalendar() {
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      setSelectedDate(date)
+      // Нормализуем дату, убирая время
+      const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+      setSelectedDate(normalizedDate)
       setView("day")
     }
   }
@@ -288,23 +298,32 @@ export function EventCalendar() {
   }
 
   const handleMonthClick = (monthDate: Date) => {
-    setDate(monthDate)
+    // Устанавливаем дату на первое число выбранного месяца
+    const selectedMonthDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+    setDate(selectedMonthDate)
+    setCurrentMonth(selectedMonthDate)
     setView("month")
   }
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task)
     setView("day")
-    setSelectedDate(new Date(task.dueDate))
+    const taskDate = new Date(task.dueDate)
+    const normalizedDate = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate(), 0, 0, 0, 0)
+    setSelectedDate(normalizedDate)
   }
 
   // Получаем события и задачи для выбранной даты
   const getEventsAndTasksForDate = (date: Date) => {
     const eventsForDate = events.filter(
-      (event) =>
-        event.date.getDate() === date.getDate() &&
-        event.date.getMonth() === date.getMonth() &&
-        event.date.getFullYear() === date.getFullYear(),
+      (event) => {
+        const eventDate = new Date(event.date)
+        return (
+          eventDate.getDate() === date.getDate() &&
+          eventDate.getMonth() === date.getMonth() &&
+          eventDate.getFullYear() === date.getFullYear()
+        )
+      }
     )
 
     const tasksForDate = tasks.filter((task) => {
@@ -415,18 +434,20 @@ export function EventCalendar() {
     "Декабрь",
   ]
 
-  const currentMonthName = monthNames[date.getMonth()]
-  const currentYear = date.getFullYear()
+  const currentMonthName = monthNames[currentMonth.getMonth()]
+  const currentYear = currentMonth.getFullYear()
 
   const handlePrevMonth = () => {
-    const newDate = new Date(date)
+    const newDate = new Date(currentMonth)
     newDate.setMonth(newDate.getMonth() - 1)
+    setCurrentMonth(newDate)
     setDate(newDate)
   }
 
   const handleNextMonth = () => {
-    const newDate = new Date(date)
+    const newDate = new Date(currentMonth)
     newDate.setMonth(newDate.getMonth() + 1)
+    setCurrentMonth(newDate)
     setDate(newDate)
   }
 
@@ -579,8 +600,17 @@ export function EventCalendar() {
                             type="date"
                             value={field.value ? field.value.toISOString().split("T")[0] : ""}
                             onChange={(e) => {
-                              const date = e.target.value ? new Date(e.target.value) : new Date()
-                              field.onChange(date)
+                              if (e.target.value) {
+                                // Создаем дату в локальном часовом поясе
+                                const [year, month, day] = e.target.value.split('-').map(Number)
+                                const date = new Date(year, month - 1, day, 0, 0, 0, 0)
+                                field.onChange(date)
+                                setSelectedDate(date)
+                              } else {
+                                const today = new Date()
+                                field.onChange(today)
+                                setSelectedDate(today)
+                              }
                             }}
                           />
                         </FormControl>
@@ -794,6 +824,7 @@ export function EventCalendar() {
                 <Calendar
                   mode="single"
                   selected={date}
+                  month={currentMonth}
                   onSelect={handleDateSelect}
                   className="rounded-md border"
                   locale={ru}
@@ -827,12 +858,12 @@ export function EventCalendar() {
                 {(() => {
                   const monthEvents = events.filter(event => {
                     const eventDate = new Date(event.date)
-                    return eventDate.getFullYear() === currentYear && eventDate.getMonth() === date.getMonth()
+                    return eventDate.getFullYear() === currentYear && eventDate.getMonth() === currentMonth.getMonth()
                   })
                   const monthTasks = tasks.filter(task => {
                     if (!task.dueDate) return false
                     const taskDate = new Date(task.dueDate)
-                    return taskDate.getFullYear() === currentYear && taskDate.getMonth() === date.getMonth()
+                    return taskDate.getFullYear() === currentYear && taskDate.getMonth() === currentMonth.getMonth()
                   })
 
                   const allItems = [

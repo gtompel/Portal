@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       data: {
         title: body.title,
         description: body.description || null,
-        date: new Date(body.date),
+        date: new Date(body.date + 'T00:00:00'),
         startTime: body.startTime,
         endTime: body.endTime,
         location: body.location || null,
