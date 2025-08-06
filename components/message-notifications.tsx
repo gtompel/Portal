@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 
 type MessageNotification = {
   id: string
@@ -22,6 +23,7 @@ type MessageNotification = {
 export function MessageNotifications() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const router = useRouter()
   const [notifications, setNotifications] = useState<MessageNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isBatchLoading, setIsBatchLoading] = useState(false)
@@ -100,6 +102,19 @@ export function MessageNotifications() {
     }
   }
 
+  const handleNotificationClick = async (notification: MessageNotification) => {
+    // Отмечаем уведомление как прочитанное
+    await markAsRead(notification.id)
+    
+    // Переходим к сообщениям с выбранным пользователем
+    if (notification.entityId) {
+      router.push(`/messages?user=${notification.entityId}`)
+    } else {
+      // Если нет entityId, просто переходим к сообщениям
+      router.push('/messages')
+    }
+  }
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -138,13 +153,13 @@ export function MessageNotifications() {
             notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-4 border-b flex items-start gap-3 ${notification.read ? "opacity-70" : "bg-muted/30"}`}
-                onClick={() => markAsRead(notification.id)}
+                className={`p-4 border-b flex items-start gap-3 cursor-pointer hover:bg-muted/50 transition-colors ${notification.read ? "opacity-70" : "bg-muted/30"}`}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <div className="mt-0.5">
                   <MessageSquare className="h-5 w-5 text-purple-500" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium">{notification.title}</p>
                   <p className="text-xs text-muted-foreground">{notification.description}</p>
                   <p className="text-xs text-muted-foreground mt-1">От: {notification.creatorName}</p>

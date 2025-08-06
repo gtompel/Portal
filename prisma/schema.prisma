@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,71 +5,63 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // Для локальной разработки используем SQLite
-  // provider = "sqlite"
-  // url      = "file:./dev.db"
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  password      String
-  position      String
-  department    String
-  phone         String?
-  avatar        String?
-  initials      String
-  status        UserStatus @default(WORKING)
-  location      String?
-  hireDate      DateTime
-  birthday      DateTime?
-  bio           String?
-  manager       User?      @relation("UserToManager", fields: [managerId], references: [id])
-  managerId     String?
-  subordinates  User[]     @relation("UserToManager")
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  // Связи
-  tasks         Task[]     @relation("AssignedTasks")
-  createdTasks  Task[]     @relation("CreatedTasks")
-  documents     Document[] @relation("CreatedDocuments")
-  events        Event[]    @relation("CreatedEvents")
-  sentMessages     Message[]  @relation("SentMessages")
-  receivedMessages Message[]  @relation("ReceivedMessages")
-  eventParticipants EventParticipant[]
-  skills        UserSkill[]
-  education     Education[]
-  experience    Experience[]
-  projects      ProjectMember[]
-  accounts      Account[]
-  sessions      Session[]
-  activity      UserActivity?
-
-  // Новые связи
-  comments      Comment[]
+  id                String             @id @default(cuid())
+  name              String
+  email             String             @unique
+  password          String
+  position          String
+  department        String
+  phone             String?
+  avatar            String?
+  initials          String
+  status            UserStatus         @default(WORKING)
+  location          String?
+  hireDate          DateTime
+  birthday          DateTime?
+  bio               String?
+  managerId         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  accounts          Account[]
+  announcements     Announcement[]
   announcementLikes AnnouncementLike[]
-  commentLikes  CommentLike[]
-  announcements Announcement[]
-  notifications Notification[] // Связь с уведомлениями
+  comments          Comment[]
+  commentLikes      CommentLike[]
+  documents         Document[]         @relation("CreatedDocuments")
+  education         Education[]
+  events            Event[]            @relation("CreatedEvents")
+  eventParticipants EventParticipant[]
+  experience        Experience[]
+  receivedMessages  Message[]          @relation("ReceivedMessages")
+  sentMessages      Message[]          @relation("SentMessages")
+  notifications     Notification[]
+  projects          ProjectMember[]
+  sessions          Session[]
+  tasks             Task[]             @relation("AssignedTasks")
+  createdTasks      Task[]             @relation("CreatedTasks")
+  manager           User?              @relation("UserToManager", fields: [managerId], references: [id])
+  subordinates      User[]             @relation("UserToManager")
+  activity          UserActivity?
+  skills            UserSkill[]
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at       Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -88,10 +77,10 @@ model Session {
 model UserActivity {
   id        String   @id @default(cuid())
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   isOnline  Boolean  @default(false)
   lastSeen  DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -102,32 +91,26 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-enum UserStatus {
-  WORKING
-  ON_VACATION
-  REMOTE
-}
-
 model UserSkill {
   id        String   @id @default(cuid())
   name      String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
 }
 
 model Education {
-  id           String   @id @default(cuid())
-  degree       String
-  institution  String
-  year         String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  degree      String
+  institution String
+  year        String
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Experience {
@@ -136,32 +119,216 @@ model Experience {
   company     String
   period      String
   description String?
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Task {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  status      TaskStatus @default(NEW)
-  priority    TaskPriority @default(LOW)
-  networkType NetworkType @default(EMVS)
-  dueDate     DateTime?
-  assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
-  assigneeId  String?
-  creator     User      @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: Cascade)
-  creatorId   String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  isArchived  Boolean   @default(false)
-  comments    TaskComment[]
-  commentList Comment[]
-  taskNumber Int?
-
+  id           String         @id @default(cuid())
+  title        String
+  description  String?
+  status       TaskStatus     @default(NEW)
+  priority     TaskPriority   @default(LOW)
+  networkType  NetworkType    @default(EMVS)
+  dueDate      DateTime?
+  assigneeId   String?
+  creatorId    String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  isArchived   Boolean        @default(false)
+  taskNumber   Int?
+  commentList  Comment[]
   Notification Notification[]
+  assignee     User?          @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  creator      User           @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: Cascade)
+  comments     TaskComment[]
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  content   String
+  taskId    String
+  author    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  name        String
+  type        DocumentType
+  description String?
+  url         String
+  size        String
+  creatorId   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  creator     User         @relation("CreatedDocuments", fields: [creatorId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id           String             @id @default(cuid())
+  title        String
+  description  String?
+  date         DateTime
+  startTime    String
+  endTime      String
+  location     String?
+  type         EventType          @default(MEETING)
+  creatorId    String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  creator      User               @relation("CreatedEvents", fields: [creatorId], references: [id], onDelete: Cascade)
+  participants EventParticipant[]
+  Notification Notification[]
+}
+
+model EventParticipant {
+  id        String            @id @default(cuid())
+  eventId   String
+  userId    String
+  status    ParticipantStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Message {
+  id           String              @id @default(cuid())
+  content      String
+  senderId     String
+  receiverId   String
+  read         Boolean             @default(false)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  receiver     User                @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender       User                @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  attachments  MessageAttachment[]
+  Notification Notification[]
+}
+
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  type      String
+  messageId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model Announcement {
+  id            String               @id @default(cuid())
+  title         String
+  content       String
+  category      AnnouncementCategory @default(NEWS)
+  authorId      String
+  likes         Int                  @default(0)
+  comments      Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  author        User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likesList     AnnouncementLike[]
+  commentsList  Comment[]
+  notifications Notification[]
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus   @default(ACTIVE)
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  members     ProjectMember[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Comment {
+  id             String        @id @default(cuid())
+  content        String
+  authorId       String
+  announcementId String?
+  taskId         String?
+  parentId       String?
+  likesCount     Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  announcement   Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  author         User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent         Comment?      @relation("CommentToReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies        Comment[]     @relation("CommentToReplies")
+  task           Task?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  likes          CommentLike[]
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+}
+
+model AnnouncementLike {
+  id             String       @id @default(cuid())
+  userId         String
+  announcementId String
+  createdAt      DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, announcementId])
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  type           NotificationType
+  userId         String
+  eventId        String?
+  taskId         String?
+  messageId      String?
+  announcementId String?
+  read           Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  announcement   Announcement?    @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  event          Event?           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  message        Message?         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  task           Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum UserStatus {
+  WORKING
+  ON_VACATION
+  REMOTE
 }
 
 enum TaskStatus {
@@ -183,29 +350,6 @@ enum NetworkType {
   ASZI
 }
 
-model TaskComment {
-  id        String   @id @default(cuid())
-  content   String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId    String
-  author    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Document {
-  id          String   @id @default(cuid())
-  name        String
-  type        DocumentType
-  description String?
-  url         String
-  size        String
-  creator     User     @relation("CreatedDocuments", fields: [creatorId], references: [id], onDelete: Cascade)
-  creatorId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
 enum DocumentType {
   DOC
   SPREADSHEET
@@ -215,24 +359,6 @@ enum DocumentType {
   OTHER
 }
 
-model Event {
-  id           String   @id @default(cuid())
-  title        String
-  description  String?
-  date         DateTime
-  startTime    String
-  endTime      String
-  location     String?
-  type         EventType @default(MEETING)
-  creator      User     @relation("CreatedEvents", fields: [creatorId], references: [id], onDelete: Cascade)
-  creatorId    String
-  participants EventParticipant[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  Notification Notification[]
-}
-
 enum EventType {
   MEETING
   DEADLINE
@@ -240,67 +366,10 @@ enum EventType {
   VACATION
 }
 
-model EventParticipant {
-  id        String   @id @default(cuid())
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventId   String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  status    ParticipantStatus @default(PENDING)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([eventId, userId])
-}
-
 enum ParticipantStatus {
   PENDING
   ACCEPTED
   DECLINED
-}
-
-model Message {
-  id          String   @id @default(cuid())
-  content     String
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  senderId    String
-  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  receiverId  String
-  read        Boolean  @default(false)
-  attachments MessageAttachment[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  Notification Notification[]
-}
-
-model MessageAttachment {
-  id        String   @id @default(cuid())
-  name      String
-  url       String
-  type      String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  messageId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Announcement {
-  id        String   @id @default(cuid())
-  title     String
-  content   String
-  category  AnnouncementCategory @default(NEWS)
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId  String
-  likes     Int      @default(0)
-  comments  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Связи
-  commentsList Comment[]
-  likesList    AnnouncementLike[]
-  notifications Notification[]
 }
 
 enum AnnouncementCategory {
@@ -310,100 +379,10 @@ enum AnnouncementCategory {
   UPDATE
 }
 
-model Project {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  status      ProjectStatus @default(ACTIVE)
-  startDate   DateTime
-  endDate     DateTime?
-  members     ProjectMember[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
 enum ProjectStatus {
   ACTIVE
   COMPLETED
   SUSPENDED
-}
-
-model ProjectMember {
-  id        String   @id @default(cuid())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  role      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([projectId, userId])
-}
-
-// Добавляем модели для комментариев и лайков
-
-model Comment {
-  id            String    @id @default(cuid())
-  content       String
-  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId      String
-  announcement  Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  announcementId String?
-  task          Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId        String?
-  parent        Comment?  @relation("CommentToReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  parentId      String?
-  replies       Comment[] @relation("CommentToReplies")
-  likesCount    Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Связи для лайков
-  likes         CommentLike[]
-}
-
-model CommentLike {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  commentId String
-  createdAt DateTime @default(now())
-
-  @@unique([userId, commentId])
-}
-
-model AnnouncementLike {
-  id            String    @id @default(cuid())
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId        String
-  announcement  Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  announcementId String
-  createdAt     DateTime  @default(now())
-
-  @@unique([userId, announcementId])
-}
-
-// Модель для уведомлений
-model Notification {
-  id          String        @id @default(cuid())
-  type        NotificationType
-  userId      String        // Кому предназначено уведомление
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventId     String?       // Ссылка на событие, если уведомление о событии
-  event       Event?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  taskId      String?       // Ссылка на задачу, если уведомление о задаче
-  task        Task?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  messageId   String?       // Ссылка на сообщение, если уведомление о сообщении
-  message     Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  announcementId String?    // Ссылка на объявление, если уведомление о объявлении
-  announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  read        Boolean       @default(false) // Прочитано ли уведомление
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  @@index([userId]) // Индекс для оптимизации запросов
 }
 
 enum NotificationType {
@@ -411,5 +390,4 @@ enum NotificationType {
   TASK
   MESSAGE
   ANNOUNCEMENT
-  // Можно добавить другие типы
 }
