@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         content: true,
+        senderId: true,
+        receiverId: true,
         read: true,
         createdAt: true,
         updatedAt: true,
@@ -86,7 +88,6 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: "asc",
       },
-      take: 100, // Ограничиваем количество сообщений для производительности
     })
 
     return NextResponse.json(messages)
@@ -160,6 +161,16 @@ export async function POST(request: NextRequest) {
           },
         },
         attachments: true,
+      },
+    })
+
+    // Создаем уведомление для получателя
+    await prisma.notification.create({
+      data: {
+        type: "MESSAGE",
+        userId: body.receiverId,
+        messageId: message.id,
+        read: false,
       },
     })
 

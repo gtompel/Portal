@@ -1,10 +1,11 @@
 import type { NextAuthOptions, User } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-//import { PrismaAdapter } from "@auth/prisma-adapter"
+import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import { compare } from "bcrypt"
 import { prisma } from "@/lib/prisma"
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
     maxAge: 10 * 60 * 60, // 10 часов
@@ -78,7 +79,7 @@ export const authOptions: NextAuthOptions = {
 
           console.log('✅ User found:', { id: user.id, email: user.email })
 
-          const passwordMatch = await compare(credentials.password, user.password)
+          const passwordMatch = await compare(credentials.password || '', user.password)
 
           if (!passwordMatch) {
             console.log('❌ Password mismatch for:', credentials.email)
@@ -92,7 +93,7 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name,
             role: user.position,
-          } as User
+          }
         } catch (error) {
           console.error('❌ Auth error:', error)
           return null
