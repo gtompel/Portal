@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Calendar, CheckSquare, MessageSquare, CheckCheck } from "lucide-react"
-import { MessageNotifications } from "@/components/message-notifications"
+import { Bell, Calendar, CheckSquare, MessageSquare, CheckCheck, Phone } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -20,10 +20,11 @@ import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useToast } from "@/hooks/use-toast"
 import { useNotificationsBatch } from "@/hooks/use-notifications-batch"
+import { NotificationHandler } from "@/components/notification-handler"
 
 type Notification = {
   id: string
-  type: "EVENT" | "TASK" | "MESSAGE" | "ASSIGNED" | "ANNOUNCEMENT"
+  type: "EVENT" | "TASK" | "MESSAGE" | "ANNOUNCEMENT" | "ASSIGNED" | "CALL_MISSED" 
   title: string
   description: string
   date: string | null
@@ -36,6 +37,7 @@ type Notification = {
 export default function Header() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   
@@ -92,6 +94,8 @@ export default function Header() {
     }
   }
 
+
+
   // Отметка как прочитанное с отправкой на сервер (используем batch)
   const markAsRead = async (id: string) => {
     try {
@@ -132,7 +136,6 @@ export default function Header() {
       <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4">
         <ThemeToggle />
 
-         <MessageNotifications />
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="icon" className="rounded-full relative">
@@ -170,8 +173,48 @@ export default function Header() {
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 border-b flex items-start gap-3 ${notification.read ? "opacity-70" : "bg-muted/30"}`}
-                    onClick={() => markAsRead(notification.id)}
+                    className={`p-4 border-b flex items-start gap-3 cursor-pointer hover:bg-muted/50 transition-colors ${notification.read ? "opacity-70" : "bg-muted/30"}`}
+                    onClick={() => {
+                      markAsRead(notification.id)
+                      // Обработка переходов в зависимости от типа уведомления
+                      switch (notification.type) {
+                        case 'MESSAGE':
+                          if (notification.entityId) {
+                            // Переходим к конкретному сообщению
+                            router.push(`/messages?messageId=${notification.entityId}`)
+                          } else {
+                            router.push('/messages')
+                          }
+                          break
+                        case 'CALL_MISSED':
+                          router.push('/messages?showCallSystem=true')
+                          break
+                        case 'TASK':
+                        case 'ASSIGNED':
+                          if (notification.entityId) {
+                            router.push(`/tasks?taskId=${notification.entityId}`)
+                          } else {
+                            router.push('/tasks')
+                          }
+                          break
+                        case 'EVENT':
+                          if (notification.entityId) {
+                            router.push(`/calendar?eventId=${notification.entityId}`)
+                          } else {
+                            router.push('/calendar')
+                          }
+                          break
+                        case 'ANNOUNCEMENT':
+                          if (notification.entityId) {
+                            router.push(`/announcements/${notification.entityId}`)
+                          } else {
+                            router.push('/announcements')
+                          }
+                          break
+                        default:
+                          router.push('/dashboard')
+                      }
+                    }}
                   >
                     <div className="mt-0.5">
                       {notification.type === "EVENT" ? (
@@ -182,6 +225,8 @@ export default function Header() {
                         <CheckSquare className="h-5 w-5 text-orange-500" />
                       ) : notification.type === "ANNOUNCEMENT" ? (
                         <Bell className="h-5 w-5 text-yellow-500" />
+                      ) : notification.type === "CALL_MISSED" ? (
+                        <Phone className="h-5 w-5 text-red-500" />
                       ) : (
                         <MessageSquare className="h-5 w-5 text-purple-500" />
                       )}

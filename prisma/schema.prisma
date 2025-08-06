@@ -28,6 +28,8 @@ model User {
   accounts          Account[]
   announcements     Announcement[]
   announcementLikes AnnouncementLike[]
+  callsAsCaller     Call[]             @relation("Caller")
+  callsAsReceiver   Call[]             @relation("Receiver")
   comments          Comment[]
   commentLikes      CommentLike[]
   documents         Document[]         @relation("CreatedDocuments")
@@ -305,6 +307,34 @@ model AnnouncementLike {
   @@unique([userId, announcementId])
 }
 
+model Call {
+  id               String     @id @default(cuid())
+  callerId         String
+  receiverId       String
+  type             CallType
+  status           CallStatus @default(RINGING)
+  startTime        DateTime   @default(now())
+  answerTime       DateTime?
+  endTime          DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  duration         Int?
+  isMuted          Boolean    @default(false)
+  isRecorded       Boolean    @default(false)
+  isSpeakerEnabled Boolean    @default(true)
+  isVideoEnabled   Boolean    @default(true)
+  notes            String?
+  quality          String?
+  recordingUrl     String?
+  caller           User       @relation("Caller", fields: [callerId], references: [id], onDelete: Cascade)
+  receiver         User       @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([callerId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([startTime])
+}
+
 model Notification {
   id             String           @id @default(cuid())
   type           NotificationType
@@ -390,4 +420,18 @@ enum NotificationType {
   TASK
   MESSAGE
   ANNOUNCEMENT
+  ASSIGNED
+  CALL_MISSED
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+  MISSED
 }

@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useSession } from "next-auth/react"
-import { Search, Send, Paperclip, MoreVertical, Phone, Video, Loader2 } from "lucide-react"
+import { Search, Send, Paperclip, MoreVertical, Phone, Loader2, X } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,7 @@ import { useUserStatus } from "@/hooks/use-user-status"
 import { useUserActivity } from "@/hooks/use-user-activity"
 import { useMessageStream } from "@/hooks/use-message-stream"
 import { ImageViewer } from "@/components/image-viewer"
+import { CallSystem, setGlobalIncomingCallHandler, getGlobalIncomingCall } from "@/components/call-system"
 
 type User = {
   id: string
@@ -38,7 +39,9 @@ type Message = {
   senderId: string
   receiverId: string
   content: string
-  timestamp: string
+  timestamp?: string
+  createdAt?: string
+  updatedAt?: string
   read: boolean
   attachments?: { id: string; name: string; url: string; type: string }[]
   sender: {
@@ -60,6 +63,8 @@ export function MessageSystem() {
   const { toast } = useToast()
   const searchParams = useSearchParams()
   const initialUserId = searchParams?.get("user")
+  const messageId = searchParams?.get("messageId")
+  const showCallSystemParam = searchParams?.get("showCallSystem")
   const { users: statusUsers, isConnected, updateUserStatus } = useUserStatus()
   
   const [searchTerm, setSearchTerm] = useState("")
@@ -85,6 +90,10 @@ export function MessageSystem() {
     imageUrl: '',
     imageName: ''
   })
+
+  // Состояние для звонков
+  const [showCallSystem, setShowCallSystem] = useState(false)
+  const [callType, setCallType] = useState<'AUDIO' | 'VIDEO' | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -147,24 +156,33 @@ export function MessageSystem() {
 
         const data = await response.json()
 
-        // Получаем количество непрочитанных сообщений
-        const unreadResponse = await fetch(`/api/messages/unread?userId=${session.user.id}`)
-        let unreadData: { totalUnread: number; unreadBySender: Array<{ senderId: string; count: number }> } = { 
-          totalUnread: 0, 
-          unreadBySender: [] 
-        }
-        
-        if (unreadResponse.ok) {
-          unreadData = await unreadResponse.json()
+        // Получаем непрочитанные сообщения через уведомления
+        let unreadData: { [key: string]: number } = {}
+        try {
+          const notificationsResponse = await fetch(`/api/notifications?userId=${session.user.id}`)
+          if (notificationsResponse.ok) {
+            const notifications = await notificationsResponse.json()
+            const messageNotifications = notifications.filter((n: any) => n.type === 'MESSAGE')
+            
+            // Группируем по отправителю
+            messageNotifications.forEach((notification: any) => {
+              if (notification.messageId) {
+                // Получаем информацию о сообщении для определения отправителя
+                // Пока используем простую логику
+                const senderId = notification.messageId.split('_')[0] // Простая логика
+                unreadData[senderId] = (unreadData[senderId] || 0) + 1
+              }
+            })
+          }
+        } catch (error) {
+          console.error('Ошибка при получении непрочитанных сообщений:', error)
         }
 
         // Не включаем текущего пользователя в список контактов
         const filteredUsers = data
           .filter((user: any) => user.id !== session.user.id)
           .map((user: any) => {
-            const unreadCount = unreadData.unreadBySender.find(
-              (item: any) => item.senderId === user.id
-            )?.count || 0
+            const unreadCount = unreadData[user.id] || 0
             
             // Получаем статус из SSE данных
             const statusUser = statusUsers.find((statusUser: any) => statusUser.id === user.id)
@@ -190,6 +208,29 @@ export function MessageSystem() {
             setSelectedUser(userFromUrl)
           }
         }
+        
+        // Если в URL указан messageId, получаем информацию о сообщении и выбираем отправителя
+        if (messageId && !selectedUser) {
+          try {
+            const messageResponse = await fetch(`/api/messages/${messageId}`)
+            if (messageResponse.ok) {
+              const messageData = await messageResponse.json()
+              const senderId = messageData.senderId
+              const receiverId = messageData.receiverId
+              
+              // Определяем, кто является отправителем для текущего пользователя
+              const targetUserId = senderId === session?.user?.id ? receiverId : senderId
+              
+              // Находим пользователя в списке
+              const userFromMessage = filteredUsers.find((user: { id: string }) => user.id === targetUserId)
+              if (userFromMessage) {
+                setSelectedUser(userFromMessage)
+              }
+            }
+          } catch (error) {
+            console.error('Ошибка при получении информации о сообщении:', error)
+          }
+        }
       } catch (err) {
         //console.error("Ошибка загрузки пользователей:", err)
         setError("Не удалось загрузить список пользователей")
@@ -199,7 +240,7 @@ export function MessageSystem() {
     }
 
     fetchUsers()
-  }, [session, initialUserId])
+  }, [session, initialUserId, messageId])
 
   // Filter users based on search term
   useEffect(() => {
@@ -217,6 +258,48 @@ export function MessageSystem() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Scroll to specific message if messageId is provided
+  useEffect(() => {
+    if (messageId && messages.length > 0) {
+      const targetMessage = messages.find((msg: Message) => msg.id === messageId)
+      if (targetMessage) {
+        // Находим элемент сообщения и прокручиваем к нему
+        const messageElement = document.getElementById(`message-${messageId}`)
+        if (messageElement) {
+          messageElement.scrollIntoView({ behavior: "smooth", block: "center" })
+          // Добавляем подсветку
+          messageElement.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50')
+          setTimeout(() => {
+            messageElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50')
+          }, 3000)
+        }
+      }
+    }
+  }, [messageId, messages])
+
+  // Обработка клавиши Escape для закрытия модального окна звонков
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showCallSystem) {
+        setShowCallSystem(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [showCallSystem])
+
+  // Автоматическое открытие системы звонков при переходе с параметром
+  useEffect(() => {
+    if (showCallSystemParam === 'true') {
+      setShowCallSystem(true)
+      // При переходе с уведомления о звонке выбираем первого доступного пользователя
+      if (!selectedUser && filteredUsers.length > 0) {
+        setSelectedUser(filteredUsers[0])
+      }
+    }
+  }, [showCallSystemParam, filteredUsers, selectedUser])
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || !selectedUser || !session?.user?.id) return
@@ -440,19 +523,100 @@ export function MessageSystem() {
       .toUpperCase()
   }
 
-  const formatMessageTime = (dateString: string) => {
+  const formatMessageTime = (dateString: string | undefined) => {
+    if (!dateString) {
+      return "Сейчас"
+    }
+    
     try {
-      const date = new Date(dateString)
-      // Проверяем, что дата валидна
-      if (isNaN(date.getTime())) {
+      let date: Date
+      
+      // Проверяем, является ли dateString уже объектом Date
+      if (dateString && typeof dateString === 'object' && 'getTime' in dateString) {
+        date = dateString as Date
+      } else {
+        // Пробуем разные форматы даты
+        const parsed = new Date(dateString)
+        
+        // Проверяем, что дата валидна
+        if (isNaN(parsed.getTime())) {
+          // Если не удалось распарсить, пробуем другие форматы
+          const timestamp = parseInt(dateString)
+          if (!isNaN(timestamp)) {
+            date = new Date(timestamp)
+          } else {
+            // Если ничего не работает, используем текущее время
+            console.warn("Не удалось распарсить дату:", dateString)
+            return "Сейчас"
+          }
+        } else {
+          date = parsed
+        }
+      }
+      
+      // Проверяем, что дата в будущем (не более чем на 1 час)
+      const now = new Date()
+      const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+      
+      if (diffInHours < 0 && diffInHours > -1) {
         return "Сейчас"
       }
-      return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+      
+      // Форматируем полную дату и время
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }
+      
+      return date.toLocaleDateString("ru-RU", dateOptions)
     } catch (error) {
-      console.error("Ошибка форматирования времени:", error)
+      console.error("Ошибка форматирования времени:", error, "dateString:", dateString)
       return "Сейчас"
     }
   }
+
+  // Функции для звонков
+  const handleCallClick = (type: 'AUDIO' | 'VIDEO') => {
+    if (!selectedUser) {
+      toast({
+        title: "Ошибка",
+        description: "Выберите пользователя для звонка",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    setCallType(type)
+    setShowCallSystem(true)
+  }
+
+  const handleCallEnd = () => {
+    setShowCallSystem(false)
+    setCallType(null)
+  }
+
+  // Глобальная проверка входящих звонков через CallSystem
+  useEffect(() => {
+    if (!session?.user?.id) return
+
+    // Устанавливаем обработчик для глобальных входящих звонков
+    setGlobalIncomingCallHandler((call: any) => {
+      if (call) {
+        setShowCallSystem(true) // Автоматически открываем модальное окно при входящем звонке
+      }
+    })
+
+    // Проверяем текущий входящий звонок при загрузке
+    const currentIncomingCall = getGlobalIncomingCall()
+    if (currentIncomingCall) {
+      setShowCallSystem(true)
+    }
+  }, [session?.user?.id])
+
+
 
   if (error) {
     return (
@@ -481,9 +645,20 @@ export function MessageSystem() {
                 {isConnected ? 'Подключено' : 'Отключено'}
               </span>
             </div>
-                  <div className="text-xs text-muted-foreground">
-        {users.filter(user => user.isOnline).length} активных
-      </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCallSystem(true)}
+                className="flex items-center gap-2"
+              >
+                <Phone className="h-4 w-4" />
+                Звонки
+              </Button>
+              <div className="text-xs text-muted-foreground">
+                {users.filter(user => user.isOnline).length} активных
+              </div>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -577,12 +752,6 @@ export function MessageSystem() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon">
-                    <Phone className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <Video className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
                     <MoreVertical className="h-5 w-5" />
                   </Button>
                 </div>
@@ -612,9 +781,10 @@ export function MessageSystem() {
 
                     return (
                       <div 
-                      key={message.id} 
-                      className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
-                    >
+                        id={`message-${message.id}`}
+                        key={message.id} 
+                        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                      >
                         <div
                           className={`max-w-[70%] ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"} rounded-lg p-3 relative group`}
                         >
@@ -763,13 +933,13 @@ export function MessageSystem() {
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
-                              console.log('Клик по контейнеру изображения в attachments:', attachment.url, attachment.name)
+
                               openImageViewer(attachment.url, attachment.name)
                             }}
                             onMouseDown={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
-                              console.log('MouseDown по контейнеру изображения в attachments')
+
                             }}
                           >
                             <img
@@ -903,6 +1073,7 @@ export function MessageSystem() {
                   }}
                   disabled={isSending}
                 />
+
                 <Button onClick={handleSendMessage} disabled={(!newMessage.trim() && attachments.length === 0) || isSending}>
                   {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
@@ -923,6 +1094,53 @@ export function MessageSystem() {
         imageUrl={imageViewer.imageUrl}
         imageName={imageViewer.imageName}
       />
+
+      {/* Call System Modal */}
+      {showCallSystem && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCallSystem(false)
+            }
+          }}
+        >
+          <div className="bg-background rounded-lg p-6 max-w-md w-full mx-4 relative">
+            {/* Кнопка закрытия */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-10"
+              onClick={() => setShowCallSystem(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <CallSystem
+              selectedUserId={selectedUser?.id}
+              onCallEnd={handleCallEnd}
+              users={filteredUsers.map(user => ({
+                id: user.id,
+                name: user.name,
+                avatar: user.avatar,
+                initials: user.initials,
+                isOnline: user.isOnline
+              }))}
+              onUserSelect={(userId) => {
+                if (userId) {
+                  const user = filteredUsers.find(u => u.id === userId)
+                  if (user) {
+                    setSelectedUser(user)
+                  }
+                } else {
+                  setSelectedUser(null)
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+
     </div>
   )
 }

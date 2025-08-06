@@ -512,30 +512,49 @@ export function UnifiedAnalytics() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* Легенда для бейджей */}
+                  <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Статус задач:</p>
+                    <div className="flex gap-3 text-xs">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-green-100 rounded-full"></div>
+                        <span className="text-green-700">Выполнено</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-orange-100 rounded-full"></div>
+                        <span className="text-orange-700">В работе</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-red-100 rounded-full"></div>
+                        <span className="text-red-700">Просрочено</span>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="space-y-3">
-                                         {data.details.tasksByAssignee.map((user) => (
-                       <div key={user.name} className="flex items-center justify-between p-3 border rounded-lg">
-                         <div className="flex items-center gap-3">
-                           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                             <span className="text-sm font-medium text-blue-600">
-                               {user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                             </span>
-                           </div>
-                           <div>
-                             <p className="text-sm font-medium" title={user.fullName}>{user.name}</p>
-                             <p className="text-xs text-muted-foreground">
-                               Всего задач: {user.total}
-                             </p>
-                           </div>
-                         </div>
+                    {data.details.tasksByAssignee.map((user) => (
+                      <div key={user.name} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-medium text-blue-600">
+                              {user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium" title={user.fullName}>{user.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Всего задач: {user.total}
+                            </p>
+                          </div>
+                        </div>
                         <div className="flex gap-2">
-                          <Badge className="bg-green-100 text-green-800 text-xs">
+                          <Badge className="bg-green-100 text-green-800 text-xs" title="Выполнено">
                             {user.completed}
                           </Badge>
-                          <Badge className="bg-orange-100 text-orange-800 text-xs">
+                          <Badge className="bg-orange-100 text-orange-800 text-xs" title="В работе">
                             {user.inProgress}
                           </Badge>
-                          <Badge className="bg-red-100 text-red-800 text-xs">
+                          <Badge className="bg-red-100 text-red-800 text-xs" title="Просрочено">
                             {user.overdue}
                           </Badge>
                         </div>

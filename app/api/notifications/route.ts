@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 
 // GET /api/notifications - Получить уведомления для пользователя
 export async function GET(request: NextRequest) {
@@ -99,6 +99,18 @@ export async function GET(request: NextRequest) {
             entityId: notification.taskId,
             creatorName: notification.task?.creator?.name,
           }
+        case "ASSIGNED":
+          return {
+            id: notification.id,
+            type: notification.type,
+            title: notification.task?.title || "Назначенная задача",
+            description: `Вам назначена задача: ${notification.task?.title || "Без названия"}`,
+            date: notification.task?.dueDate,
+            createdAt: notification.createdAt,
+            read: notification.read,
+            entityId: notification.taskId,
+            creatorName: notification.task?.creator?.name,
+          }
         case "MESSAGE":
           return {
             id: notification.id,
@@ -123,6 +135,18 @@ export async function GET(request: NextRequest) {
             entityId: notification.announcementId,
             creatorName: notification.announcement?.author?.name,
           }
+        case "CALL_MISSED":
+          return {
+            id: notification.id,
+            type: notification.type,
+            title: "Пропущенный звонок",
+            description: "Вы пропустили входящий звонок",
+            date: null,
+            createdAt: notification.createdAt,
+            read: notification.read,
+            entityId: null,
+            creatorName: "Система звонков",
+          }
         default:
           return null
       }
@@ -132,6 +156,49 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Ошибка при получении уведомлений:", error)
     return NextResponse.json({ error: "Ошибка при получении уведомлений" }, { status: 500 })
+  }
+}
+
+// POST /api/notifications - Создать новое уведомление
+export async function POST(request: NextRequest) {
+  const token = await getToken({ 
+    req: request as any, 
+    secret: process.env.NEXTAUTH_SECRET 
+  })
+  
+  if (!token?.sub) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const body = await request.json()
+    const { type, userId, eventId, taskId, messageId, announcementId, read = false } = body
+
+    if (!type || !userId) {
+      return NextResponse.json({ error: "Необходимо указать type и userId" }, { status: 400 })
+    }
+
+    // Создаем уведомление в базе данных
+    const notificationData: any = {
+      type,
+      userId,
+      read,
+    }
+
+    // Добавляем только те поля, которые не null
+    if (eventId) notificationData.eventId = eventId
+    if (taskId) notificationData.taskId = taskId
+    if (messageId) notificationData.messageId = messageId
+    if (announcementId) notificationData.announcementId = announcementId
+
+    const notification = await prisma.notification.create({
+      data: notificationData,
+    })
+
+    return NextResponse.json(notification, { status: 201 })
+  } catch (error) {
+    console.error("Ошибка при создании уведомления:", error)
+    return NextResponse.json({ error: "Ошибка при создании уведомления" }, { status: 500 })
   }
 }
 

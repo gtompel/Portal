@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -74,6 +75,7 @@ type User = {
 export function EventCalendar() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
   const [date, setDate] = useState<Date>(new Date())
   const [view, setView] = useState<"year" | "month" | "day">("year")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -112,11 +114,26 @@ export function EventCalendar() {
     },
   })
 
+  // Получаем eventId из URL параметров
+  const eventId = searchParams?.get("eventId")
+
   useEffect(() => {
     fetchEvents()
     fetchTasks()
     fetchUsers()
   }, [])
+
+  // Если в URL указан eventId, находим событие и переходим к его дате
+  useEffect(() => {
+    if (eventId && events.length > 0) {
+      const event = events.find(e => e.id === eventId)
+      if (event) {
+        setSelectedDate(event.date)
+        setCurrentMonth(event.date)
+        setDate(event.date)
+      }
+    }
+  }, [eventId, events])
 
   // Обновляем форму при изменении выбранной даты
   useEffect(() => {

@@ -54,7 +54,7 @@ export function useTaskForms() {
       priority: task.priority,
       status: task.status,
       networkType: task.networkType,
-      dueDate: task.dueDate ? task.dueDate.toISOString().split('T')[0] : "",
+      dueDate: task.dueDate ? (typeof task.dueDate === 'string' ? task.dueDate.split('T')[0] : task.dueDate.toISOString().split('T')[0]) : "",
       assigneeId: task.assignee?.id || "",
     })
   }, [editForm])

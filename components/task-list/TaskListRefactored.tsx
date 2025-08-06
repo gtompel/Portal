@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useToast } from "@/hooks/use-toast"
+import { useSearchParams } from "next/navigation"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TaskListHeader } from "./components/TaskListHeader"
 import { TaskListFilters } from "./components/TaskListFilters"
@@ -17,6 +18,7 @@ import { createTask as createTaskAction, updateTask as updateTaskAction, deleteT
 export function TaskListRefactored() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
   
   // Состояния для диалогов
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -63,10 +65,24 @@ export function TaskListRefactored() {
     restoreTask
   } = useTaskActions(setTasks)
 
+  // Получаем taskId из URL параметров
+  const taskId = searchParams?.get("taskId")
+
   // Загружаем задачи при изменении фильтра архива
   useEffect(() => {
     fetchTasks(filters.showArchived)
   }, [filters.showArchived, fetchTasks])
+
+  // Если в URL указан taskId, открываем диалог редактирования
+  useEffect(() => {
+    if (taskId && tasks.length > 0) {
+      const task = tasks.find(t => t.id === taskId)
+      if (task) {
+        setCurrentTask(task)
+        setIsEditDialogOpen(true)
+      }
+    }
+  }, [taskId, tasks])
 
   // Обработка ошибок
   if (error) {

@@ -69,7 +69,10 @@ export function useMessageStream(otherUserId: string | null) {
     let eventSource: EventSource | null = null
 
     if (session?.user?.id && otherUserId) {
-      eventSource = connectSSE()
+      const source = connectSSE()
+      if (source) {
+        eventSource = source
+      }
     }
 
     return () => {
