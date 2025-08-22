@@ -101,9 +101,12 @@ export function useTaskFilters(tasks: Task[]) {
     const matchesNetwork = filters.networkTypeFilter === "all" || task.networkType === filters.networkTypeFilter
     const matchesAssignee = filters.assigneeFilter === "all" || task.assignee?.id === filters.assigneeFilter
     const matchesPriority = filters.priorityFilter === "all" || task.priority === filters.priorityFilter
+    const matchesDayType = !filters.dayTypeFilter || filters.dayTypeFilter === "all"
+      ? true
+      : (filters.dayTypeFilter === "none" ? !task.dayType : task.dayType === filters.dayTypeFilter)
     
-    return Boolean(matchesSearch && matchesStatus && matchesNetwork && matchesAssignee && matchesPriority)
-  }, [filters.searchTerm, filters.statusFilter, filters.networkTypeFilter, filters.assigneeFilter, filters.priorityFilter])
+    return Boolean(matchesSearch && matchesStatus && matchesNetwork && matchesAssignee && matchesPriority && matchesDayType)
+  }, [filters.searchTerm, filters.statusFilter, filters.networkTypeFilter, filters.assigneeFilter, filters.priorityFilter, filters.dayTypeFilter])
 
   const sortedTasks = useOptimizedSort(filtered, (a, b) => {
     const aValue = a[filters.sortField as keyof Task]

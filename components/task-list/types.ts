@@ -38,6 +38,7 @@ export type TaskFilters = {
   sortField: string
   sortDirection: "asc" | "desc"
   showArchived: boolean
+  dayTypeFilter?: "all" | "WEEKDAY" | "WEEKEND" | "none"
 }
 
 export type TaskFormData = {

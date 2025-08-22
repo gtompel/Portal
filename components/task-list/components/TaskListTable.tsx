@@ -23,6 +23,7 @@ interface TaskListTableProps {
   onQuickUpdatePriority: (taskId: string, priority: Task["priority"]) => void
   onQuickUpdateNetworkType: (taskId: string, networkType: Task["networkType"]) => void
   onQuickUpdateAssignee: (taskId: string, assigneeId: string) => void
+  onQuickUpdateDayType: (taskId: string, dayType: 'WEEKDAY' | 'WEEKEND' | null) => void
 }
 
 export function TaskListTable({
@@ -41,7 +42,8 @@ export function TaskListTable({
   onQuickUpdateStatus,
   onQuickUpdatePriority,
   onQuickUpdateNetworkType,
-  onQuickUpdateAssignee
+  onQuickUpdateAssignee,
+  onQuickUpdateDayType
 }: TaskListTableProps) {
   // Функция для получения иконки сортировки
   const getSortIcon = (field: string) => {
@@ -191,6 +193,7 @@ export function TaskListTable({
                 onQuickUpdatePriority={onQuickUpdatePriority}
                 onQuickUpdateNetworkType={onQuickUpdateNetworkType}
                 onQuickUpdateAssignee={onQuickUpdateAssignee}
+                onQuickUpdateDayType={onQuickUpdateDayType}
               />
             ))
           ) : (

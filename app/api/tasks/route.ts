@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
         status: true,
         priority: true,
         networkType: true,
+        dayType: true,
         dueDate: true,
         taskNumber: true,
         createdAt: true,

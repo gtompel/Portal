@@ -350,6 +350,35 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     }
   }, [setTasks, toast])
 
+  // Быстрое обновление типа дня
+  const quickUpdateDayType = useCallback(async (taskId: string, newDayType: 'WEEKDAY' | 'WEEKEND' | null) => {
+    try {
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId ? { ...task, dayType: newDayType || undefined } : task
+        )
+      )
+
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dayType: newDayType })
+      })
+
+      if (!response.ok) throw new Error("Не удалось обновить день")
+
+      const updatedTask = await response.json()
+      setTasks((prev) => prev.map((task) => task.id === taskId ? updatedTask : task))
+
+      toast({ title: "День обновлён", description: newDayType === 'WEEKEND' ? 'Выходной' : newDayType === 'WEEKDAY' ? 'Будни' : '—' })
+      return true
+    } catch (error) {
+      console.error("Ошибка при обновлении дня:", error)
+      toast({ title: "Ошибка", description: "Не удалось обновить день", variant: "destructive" })
+      return false
+    }
+  }, [setTasks, toast])
+
   // Архивирование задачи с Server Action
   const archiveTask = useCallback(async (taskId: string) => {
     try {
@@ -425,6 +454,7 @@ export function useTaskActions(setTasks: React.Dispatch<React.SetStateAction<Tas
     quickUpdatePriority,
     quickUpdateNetworkType,
     quickUpdateAssignee,
+    quickUpdateDayType,
     archiveTask,
     restoreTask
   }

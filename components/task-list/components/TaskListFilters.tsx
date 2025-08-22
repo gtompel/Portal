@@ -101,10 +101,10 @@ export function TaskListFilters({
         </div>
       </div>
       
-      {/* Фильтры - в отдельной строке */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+      {/* Фильтры - в одну строку, с горизонтальным скроллом при нехватке места */}
+      <div className="flex flex-row items-center gap-2 overflow-x-auto">
         <Select value={filters.statusFilter} onValueChange={(value) => onFilterChange("statusFilter", value)}>
-          <SelectTrigger className="w-full h-9 text-sm">
+          <SelectTrigger className="w-40 h-9 text-sm whitespace-nowrap">
             <SelectValue placeholder="Статус" />
           </SelectTrigger>
           <SelectContent>
@@ -117,7 +117,7 @@ export function TaskListFilters({
         </Select>
         
         <Select value={filters.networkTypeFilter} onValueChange={(value) => onFilterChange("networkTypeFilter", value)}>
-          <SelectTrigger className="w-full h-9 text-sm">
+          <SelectTrigger className="w-40 h-9 text-sm whitespace-nowrap">
             <SelectValue placeholder="Сеть" />
           </SelectTrigger>
           <SelectContent>
@@ -129,7 +129,7 @@ export function TaskListFilters({
         </Select>
         
         <Select value={filters.assigneeFilter} onValueChange={(value) => onFilterChange("assigneeFilter", value)}>
-          <SelectTrigger className="w-full h-9 text-sm">
+          <SelectTrigger className="w-48 h-9 text-sm whitespace-nowrap">
             <SelectValue placeholder="Исполнитель" />
           </SelectTrigger>
           <SelectContent>
@@ -143,7 +143,7 @@ export function TaskListFilters({
         </Select>
         
         <Select value={filters.priorityFilter} onValueChange={(value) => onFilterChange("priorityFilter", value)}>
-          <SelectTrigger className="w-full h-9 text-sm">
+          <SelectTrigger className="w-44 h-9 text-sm whitespace-nowrap">
             <SelectValue placeholder="Приоритет" />
           </SelectTrigger>
           <SelectContent>
@@ -154,9 +154,21 @@ export function TaskListFilters({
           </SelectContent>
         </Select>
         
+        <Select value={filters.dayTypeFilter || 'all'} onValueChange={(value) => onFilterChange("dayTypeFilter", value)}>
+          <SelectTrigger className="w-36 h-9 text-sm whitespace-nowrap">
+            <SelectValue placeholder="День" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все дни</SelectItem>
+            <SelectItem value="WEEKDAY">Будни</SelectItem>
+            <SelectItem value="WEEKEND">Выходной</SelectItem>
+            <SelectItem value="none">—</SelectItem>
+          </SelectContent>
+        </Select>
+        
         {/* Кнопка "Новая настройка АРМ" */}
         {!filters.showArchived && (
-          <Button className="gap-1 w-full h-9 text-sm" onClick={onCreateTask}>
+          <Button className="gap-1 h-9 text-sm whitespace-nowrap ml-auto" onClick={onCreateTask}>
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Новый АРМ</span>
             <span className="sm:hidden">+</span>

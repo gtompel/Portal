@@ -74,5 +74,6 @@ export const DEFAULT_FILTERS = {
   priorityFilter: "all",
   sortField: "taskNumber",
   sortDirection: "desc" as const,
-  showArchived: false
+  showArchived: false,
+  dayTypeFilter: "all" as const
 } as const 

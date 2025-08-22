@@ -57,6 +57,7 @@ export function TaskListRefactored() {
     quickUpdatePriority,
     quickUpdateNetworkType,
     quickUpdateAssignee,
+    quickUpdateDayType,
     archiveTask,
     restoreTask
   } = useTaskActions(setTasks)
@@ -315,6 +316,7 @@ export function TaskListRefactored() {
           onQuickUpdatePriority={handleQuickUpdatePriority}
           onQuickUpdateNetworkType={handleQuickUpdateNetworkType}
           onQuickUpdateAssignee={handleQuickUpdateAssignee}
+          onQuickUpdateDayType={quickUpdateDayType}
         />
         
         {/* Диалоги */}
