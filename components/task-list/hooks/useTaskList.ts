@@ -42,15 +42,26 @@ export function useTaskList() {
           case 'task_updated':
           case 'task_status_changed':
           case 'task_priority_changed':
-          case 'task_network_type_changed':
-            setTasks(prev => prev.map(task => 
-              task.id === data.taskId ? data.task : task
-            ))
+          case 'task_network_type_changed': {
+            setTasks(prev => {
+              const exists = prev.some(task => task.id === data.taskId)
+              if (exists) {
+                return prev.map(task => task.id === data.taskId ? data.task : task)
+              }
+              // Если задачи нет в текущем списке, но сервер прислал полную задачу — добавим
+              if (data.task) {
+                return [data.task, ...prev]
+              }
+              // Иначе перезагрузим список
+              fetchTasks()
+              return prev
+            })
             toast({
               title: "Задача обновлена",
               description: `Задача "${data.task.title}" была изменена`,
             })
             break
+          }
             
           case 'task_deleted':
             setTasks(prev => prev.filter(task => task.id !== data.taskId))
@@ -70,7 +81,18 @@ export function useTaskList() {
             })
             break
             
-          case 'task_assigned':
+          case 'task_assigned': {
+            // Всегда обновляем список, чтобы увидеть смену исполнителя
+            if (data.taskId && data.task) {
+              setTasks(prev => {
+                const exists = prev.some(task => task.id === data.taskId)
+                return exists
+                  ? prev.map(task => task.id === data.taskId ? data.task : task)
+                  : [data.task, ...prev]
+              })
+            } else {
+              fetchTasks()
+            }
             if (session?.user?.id && data.userId === session.user.id) {
               toast({
                 title: 'Вам назначена задача',
@@ -78,6 +100,7 @@ export function useTaskList() {
               })
             }
             break
+          }
         }
       } catch (error) {
         console.error('Error processing SSE message:', error)

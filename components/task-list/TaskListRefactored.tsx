@@ -1,8 +1,6 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { useSession } from "next-auth/react"
-import { useToast } from "@/hooks/use-toast"
 import { useSearchParams } from "next/navigation"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TaskListHeader } from "./components/TaskListHeader"
@@ -16,8 +14,6 @@ import { Task, TaskFormData } from "./types"
 import { createTask as createTaskAction, updateTask as updateTaskAction, deleteTask as deleteTaskAction, archiveTask as archiveTaskAction, restoreTask as restoreTaskAction, updateTaskStatus as updateTaskStatusAction } from "@/lib/actions"
 
 export function TaskListRefactored() {
-  const { data: session } = useSession()
-  const { toast } = useToast()
   const searchParams = useSearchParams()
   
   // Состояния для диалогов

@@ -1,7 +1,17 @@
 import { EventEmitter } from 'events'
 
-// Глобальный EventEmitter для передачи событий
-export const taskEvents = new EventEmitter()
+// Глобальный singleton EventEmitter для dev/HMR и многопроцессной среды
+// Чтобы один и тот же инстанс использовался во всех импортёрах
+const globalKey = '__TASK_EVENTS_SINGLETON__'
+const globalAny = globalThis as unknown as Record<string, any>
+
+if (!globalAny[globalKey]) {
+  const emitter = new EventEmitter()
+  emitter.setMaxListeners(100)
+  globalAny[globalKey] = emitter
+}
+
+export const taskEvents: EventEmitter = globalAny[globalKey]
 
 // Типы событий
 export type TaskEventType = 
@@ -31,8 +41,4 @@ export const emitTaskEvent = (eventType: TaskEventType, data: Partial<TaskEvent>
   }
   
   taskEvents.emit('task_change', event)
-  // Логируем только в режиме разработки
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`Task event: ${eventType}`, { taskId: event.taskId, userId: event.userId })
-  }
 } 

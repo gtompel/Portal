@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { revalidatePath } from 'next/cache'
 import { TaskStatus, TaskPriority, NetworkType } from '@prisma/client'
+import { emitTaskEvent } from '@/lib/events'
 
 // Server Action для создания задачи
 export async function createTask(formData: FormData) {
@@ -71,6 +72,7 @@ export async function createTask(formData: FormData) {
     })
 
     revalidatePath('/tasks')
+    emitTaskEvent('task_created', { taskId: task.id, task, userId: task.creatorId })
     return { success: true, task }
   } catch (error) {
     console.error('Error creating task:', error)
@@ -125,6 +127,7 @@ export async function updateTask(taskId: string, formData: FormData) {
     })
 
     revalidatePath('/tasks')
+    emitTaskEvent('task_updated', { taskId: task.id, task, userId: task.creator?.id })
     return { success: true, task }
   } catch (error) {
     console.error('Error updating task:', error)
@@ -141,11 +144,13 @@ export async function deleteTask(taskId: string) {
   }
 
   try {
+    const existing = await prisma.task.findUnique({ where: { id: taskId } })
     await prisma.task.delete({
       where: { id: taskId }
     })
 
     revalidatePath('/tasks')
+    emitTaskEvent('task_deleted', { taskId, userId: existing?.creatorId })
     return { success: true }
   } catch (error) {
     console.error('Error deleting task:', error)
@@ -162,12 +167,21 @@ export async function updateTaskStatus(taskId: string, status: string) {
   }
 
   try {
-    await prisma.task.update({
+    const updated = await prisma.task.update({
       where: { id: taskId },
       data: { status: status as TaskStatus }
     })
 
     revalidatePath('/tasks')
+    // Подгружаем полную задачу для клиента
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        assignee: { select: { id: true, name: true, avatar: true, initials: true } },
+        creator: { select: { id: true, name: true } }
+      }
+    })
+    emitTaskEvent('task_status_changed', { taskId, task: task || updated })
     return { success: true }
   } catch (error) {
     console.error('Error updating task status:', error)
@@ -184,12 +198,20 @@ export async function archiveTask(taskId: string) {
   }
 
   try {
-    await prisma.task.update({
+    const task = await prisma.task.update({
       where: { id: taskId },
       data: { isArchived: true }
     })
 
     revalidatePath('/tasks')
+    const fullTask = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        assignee: { select: { id: true, name: true, avatar: true, initials: true } },
+        creator: { select: { id: true, name: true } }
+      }
+    })
+    emitTaskEvent('task_archived', { taskId, task: fullTask || task })
     return { success: true }
   } catch (error) {
     console.error('Error archiving task:', error)
@@ -206,12 +228,20 @@ export async function restoreTask(taskId: string) {
   }
 
   try {
-    await prisma.task.update({
+    const task = await prisma.task.update({
       where: { id: taskId },
       data: { isArchived: false }
     })
 
     revalidatePath('/tasks')
+    const fullTask = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        assignee: { select: { id: true, name: true, avatar: true, initials: true } },
+        creator: { select: { id: true, name: true } }
+      }
+    })
+    emitTaskEvent('task_updated', { taskId, task: fullTask || task })
     return { success: true }
   } catch (error) {
     console.error('Error restoring task:', error)

@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server'
 import { taskEvents } from '@/lib/events'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin') || '*'
   
@@ -63,13 +66,15 @@ export async function GET(request: NextRequest) {
           controller.close()
         })
 
-        // Отправляем ping каждые 30 секунд для поддержания соединения
+        // Отправляем keepalive и ping каждые 25 секунд для поддержания соединения
         const pingInterval = setInterval(() => {
+          // Комментарий-сообщение помогает обходить некоторые прокси
+          controller.enqueue(new TextEncoder().encode(`: keepalive ${Date.now()}\n\n`))
           sendEvent({ 
             type: 'ping', 
             timestamp: Date.now() 
           })
-        }, 30000)
+        }, 25000)
 
         // Очистка при закрытии
         request.signal.addEventListener('abort', () => {

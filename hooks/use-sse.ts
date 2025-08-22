@@ -96,16 +96,10 @@ export function useSSE(url: string, options: SSEOptions = {}) {
     }
 
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Connecting to SSE:', url)
-      }
       const eventSource = new EventSource(url)
       eventSourceRef.current = eventSource
 
       eventSource.onopen = () => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('SSE connection opened')
-        }
         setIsConnected(true)
         setError(null)
         reconnectAttemptsRef.current = 0
@@ -115,9 +109,6 @@ export function useSSE(url: string, options: SSEOptions = {}) {
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          if (process.env.NODE_ENV === 'development') {
-            console.log('SSE message received:', data)
-          }
           
           // Игнорируем ping сообщения
           if (data.type === 'ping') {
@@ -137,19 +128,14 @@ export function useSSE(url: string, options: SSEOptions = {}) {
         onError?.(error)
 
         // Попытка переподключения только если соединение было закрыто
-        if (eventSource.readyState === EventSource.CLOSED) {
+        if (eventSource.readyState === EventSource.CLOSED || eventSource.readyState === EventSource.CONNECTING) {
           if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-            if (process.env.NODE_ENV === 'development') {
-          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`)
-        }
             reconnectTimeoutRef.current = setTimeout(() => {
               reconnectAttemptsRef.current++
               connect()
             }, reconnectInterval)
           } else {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Max reconnection attempts reached')
-            }
+            // no-op
           }
         }
       }
