@@ -135,11 +135,11 @@ export function TaskListTable({
             <TableHead className="w-[100px]">
               <Button
                 variant="ghost"
-                onClick={() => onSort("dueDate")}
+                onClick={() => onSort("dayType")}
                 className="h-auto p-0 font-semibold hover:bg-transparent"
               >
                 День
-                {getSortIcon("dueDate")}
+                {getSortIcon("dayType")}
               </Button>
             </TableHead>
             <TableHead className="w-[80px]">Действия</TableHead>

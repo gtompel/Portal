@@ -109,13 +109,22 @@ export function useTaskFilters(tasks: Task[]) {
   }, [filters.searchTerm, filters.statusFilter, filters.networkTypeFilter, filters.assigneeFilter, filters.priorityFilter, filters.dayTypeFilter])
 
   const sortedTasks = useOptimizedSort(filtered, (a, b) => {
+    // Кастомная сортировка для dayType: WEEKEND > WEEKDAY > none в desc и наоборот в asc
+    if (filters.sortField === 'dayType') {
+      const rank = (v?: string) => {
+        if (v === 'WEEKEND') return 2
+        if (v === 'WEEKDAY') return 1
+        return 0
+      }
+      const aRank = rank(a.dayType as any)
+      const bRank = rank(b.dayType as any)
+      return filters.sortDirection === 'asc' ? (aRank - bRank) : (bRank - aRank)
+    }
+
     const aValue = a[filters.sortField as keyof Task]
     const bValue = b[filters.sortField as keyof Task]
-    
-    // Безопасное сравнение с учетом null/undefined
     const aSafe = aValue ?? ""
     const bSafe = bValue ?? ""
-    
     if (filters.sortDirection === "asc") {
       return aSafe > bSafe ? 1 : -1
     } else {

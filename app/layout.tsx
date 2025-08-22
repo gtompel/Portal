@@ -11,7 +11,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 const jetbrain = JetBrains_Mono({
   subsets: ["latin", "cyrillic"],
   display: 'swap',
-  preload: true,
+  preload: false,
 });
 
 export const metadata: Metadata = {
