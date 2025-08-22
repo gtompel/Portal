@@ -136,7 +136,7 @@ export function TaskListTable({
                 onClick={() => onSort("dueDate")}
                 className="h-auto p-0 font-semibold hover:bg-transparent"
               >
-                Срок
+                День
                 {getSortIcon("dueDate")}
               </Button>
             </TableHead>

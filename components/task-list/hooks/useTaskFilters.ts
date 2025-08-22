@@ -142,15 +142,20 @@ export function useTaskFilters(tasks: Task[]) {
     }
   }, [session?.user?.id, loadFiltersFromStorage])
 
-  // Автоматически сохраняем фильтры при их изменении
+  // Автосохранение/очистка фильтров при изменении
   useEffect(() => {
-    if (session?.user?.id && hasActiveFilters) {
-      const timeoutId = setTimeout(() => {
-        saveFiltersToStorage(session.user.id)
-      }, 1000)
-
-      return () => clearTimeout(timeoutId)
-    }
+    if (!session?.user?.id) return
+    const isDefault = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS)
+    const timeoutId = setTimeout(() => {
+      if (isDefault) {
+        // Если фильтры вернулись к дефолту (например, очистили поиск) — удаляем сохранённое
+        localStorage.removeItem(getStorageKey(session.user.id!))
+        setFiltersChanged(false)
+      } else if (hasActiveFilters) {
+        saveFiltersToStorage(session.user.id!)
+      }
+    }, 500)
+    return () => clearTimeout(timeoutId)
   }, [filters, session?.user?.id, hasActiveFilters, saveFiltersToStorage])
 
   return {

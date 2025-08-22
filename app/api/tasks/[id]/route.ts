@@ -1,18 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getToken } from "next-auth/jwt"
 import prisma from "@/lib/prisma"
 import { emitTaskEvent } from "@/lib/events"
+import { checkApiAuth } from "@/lib/api-auth"
 
 // GET /api/tasks/[id] - Получить задачу по ID
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
-    const token = await getToken({ 
-      req: request as any, 
-      secret: process.env.NEXTAUTH_SECRET 
-    })
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  const authResult = await checkApiAuth(request)
+  if (!authResult.success) {
+    return authResult.response!
+  }
   try {
     const { id } = await context.params;
     const task = await prisma.task.findUnique({
@@ -56,14 +52,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 // PUT /api/tasks/[id] - Обновить задачу
 export async function PUT(request: NextRequest, context: { params: { id: string } }) {
-    const token = await getToken({ 
-      req: request as any, 
-      secret: process.env.NEXTAUTH_SECRET 
-    })
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  const authResult = await checkApiAuth(request)
+  if (!authResult.success) {
+    return authResult.response!
+  }
   try {
     const { id } = await context.params;
     const body = await request.json()
@@ -86,6 +78,7 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
     if (body.status !== undefined) updateData.status = body.status
     if (body.priority !== undefined) updateData.priority = body.priority
     if (body.networkType !== undefined) updateData.networkType = body.networkType
+    if (body.dayType !== undefined) updateData.dayType = body.dayType
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null
     if (body.assigneeId !== undefined) {
       updateData.assigneeId = body.assigneeId === "" || body.assigneeId === "not_assigned" ? null : body.assigneeId;
@@ -191,14 +184,10 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
 
 // DELETE /api/tasks/[id] - Удалить задачу
 export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
-    const token = await getToken({ 
-      req: request as any, 
-      secret: process.env.NEXTAUTH_SECRET 
-    })
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  const authResult = await checkApiAuth(request)
+  if (!authResult.success) {
+    return authResult.response!
+  }
   try {
     const { id } = await context.params;
     // Проверяем, существует ли задача

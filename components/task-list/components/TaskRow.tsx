@@ -16,7 +16,10 @@ import {
   getPriorityText, 
   getNetworkTypeColor, 
   getNetworkTypeText, 
-  formatDate 
+  formatDate,
+  getDayType,
+  getDayText,
+  getDayBadgeClass
 } from "../utils"
 
 interface TaskRowProps {
@@ -256,9 +259,40 @@ function TaskRowComponent({
         </DropdownMenu>
       </TableCell>
 
-      {/* Срок */}
+      {/* День: выбирается пользователем */}
       <TableCell>
-        {formatDate(task.dueDate)}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent group">
+              <Badge className={getDayBadgeClass(task.dayType === 'WEEKEND' ? 'weekend' : task.dayType === 'WEEKDAY' ? 'weekday' : 'none')}>
+                {task.dayType === 'WEEKEND' ? 'Выходной' : task.dayType === 'WEEKDAY' ? 'Будни' : '—'}
+              </Badge>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <div className="px-2 py-1.5 text-sm font-semibold">День</div>
+            <div className="-mx-1 my-1 h-px bg-muted"></div>
+            <DropdownMenuItem onClick={() => onQuickUpdateNetworkType(task.id, task.networkType)} className="hidden" />
+            <DropdownMenuItem className={task.dayType === 'WEEKDAY' ? 'bg-accent' : ''}
+              onClick={() => fetch(`/api/tasks/${task.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayType: 'WEEKDAY' }) })}
+            >
+              <Badge className="mr-2">Будни</Badge>
+              {task.dayType === 'WEEKDAY' && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem className={task.dayType === 'WEEKEND' ? 'bg-accent' : ''}
+              onClick={() => fetch(`/api/tasks/${task.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayType: 'WEEKEND' }) })}
+            >
+              <Badge className="mr-2">Выходной</Badge>
+              {task.dayType === 'WEEKEND' && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem className={!task.dayType ? 'bg-accent' : ''}
+              onClick={() => fetch(`/api/tasks/${task.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayType: null }) })}
+            >
+              <Badge className="mr-2">—</Badge>
+              {!task.dayType && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
 
       {/* Действия */}

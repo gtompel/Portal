@@ -134,6 +134,7 @@ export function useTaskList() {
         status: item.status,
         priority: item.priority,
         networkType: item.networkType,
+        dayType: item.dayType,
         dueDate: item.dueDate,
         createdAt: item.createdAt,
         taskNumber: item.taskNumber,

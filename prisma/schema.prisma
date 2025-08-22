@@ -134,6 +134,7 @@ model Task {
   status       TaskStatus     @default(NEW)
   priority     TaskPriority   @default(LOW)
   networkType  NetworkType    @default(EMVS)
+  dayType      DayType?
   dueDate      DateTime?
   assigneeId   String?
   creatorId    String
@@ -378,6 +379,11 @@ enum NetworkType {
   EMVS
   INTERNET
   ASZI
+}
+
+enum DayType {
+  WEEKDAY
+  WEEKEND
 }
 
 enum DocumentType {

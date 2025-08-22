@@ -186,6 +186,29 @@ export const formatDate = (date: Date | string | null): string => {
   return dateObj.toLocaleDateString("ru-RU")
 }
 
+// Индикация: Будни/Выходной по dueDate
+export type DayType = 'weekday' | 'weekend' | 'none'
+
+export const getDayType = (date: Date | string | null | undefined): DayType => {
+  if (!date) return 'none'
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (!(d instanceof Date) || isNaN(d.getTime())) return 'none'
+  const day = d.getDay() // 0=вс, 6=сб
+  return (day === 0 || day === 6) ? 'weekend' : 'weekday'
+}
+
+export const getDayText = (t: DayType): string => {
+  if (t === 'weekday') return 'Будни'
+  if (t === 'weekend') return 'Выходной'
+  return '—'
+}
+
+export const getDayBadgeClass = (t: DayType): string => {
+  if (t === 'weekday') return 'bg-green-600 text-white'
+  if (t === 'weekend') return 'bg-red-600 text-white'
+  return 'bg-muted text-muted-foreground'
+}
+
 // Функция для получения ключа LocalStorage
 export const getStorageKey = (userId: string): string => {
   return `taskFilters_${userId}`
