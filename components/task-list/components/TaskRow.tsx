@@ -25,6 +25,7 @@ import {
 interface TaskRowProps {
   task: Task
   index: number
+  totalCount: number
   users: User[]
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
@@ -40,6 +41,7 @@ interface TaskRowProps {
 function TaskRowComponent({
   task,
   index,
+  totalCount,
   users,
   onEdit,
   onDelete,
@@ -53,9 +55,9 @@ function TaskRowComponent({
 }: TaskRowProps) {
   return (
     <TableRow className={`${task.isArchived ? "opacity-60 bg-muted/30" : ""} min-h-[60px]`}>
-      {/* Номер */}
+      {/* Порядковый номер отображения: старые задачи имеют меньшие номера */}
       <TableCell className="font-medium">
-        {getTaskNumber(task)}
+        {totalCount - index}
       </TableCell>
 
       {/* Название */}

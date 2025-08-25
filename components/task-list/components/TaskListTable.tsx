@@ -184,6 +184,7 @@ export function TaskListTable({
                 key={task.id}
                 task={task}
                 index={index}
+                totalCount={tasks.length}
                 users={users}
                 onEdit={onEdit}
                 onDelete={onDelete}
