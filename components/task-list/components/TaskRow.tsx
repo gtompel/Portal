@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useMemo, useState } from "react"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -53,6 +53,9 @@ function TaskRowComponent({
   onQuickUpdateAssignee,
   onQuickUpdateDayType
 }: TaskRowProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const descriptionLines = useMemo(() => (task.description ? task.description.split(/\r?\n/) : []), [task.description])
+  const hasLongDescription = (task.description?.length ?? 0) > 160 || descriptionLines.length > 2
   return (
     <TableRow className={`${task.isArchived ? "opacity-60 bg-muted/30" : ""} min-h-[60px]`}>
       {/* Порядковый номер отображения: старые задачи имеют меньшие номера */}
@@ -84,10 +87,27 @@ function TaskRowComponent({
         </Tooltip>
       </TableCell>
 
-      {/* Описание */}
+      {/* Описание с раскрытием */}
       <TableCell className="align-top">
         <div className="max-w-[280px] whitespace-pre-wrap break-words leading-relaxed">
-          {task.description || "-"}
+          {task.description ? (
+            <>
+              <div className={`${!isExpanded && hasLongDescription ? 'line-clamp-2' : ''}`}>{task.description}</div>
+              {hasLongDescription && (
+                <div className="mt-1 flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    className="ml-auto h-auto p-0 text-xs text-muted-foreground hover:text-muted-foreground/80"
+                    onClick={() => setIsExpanded(v => !v)}
+                  >
+                    {isExpanded ? "Свернуть" : "Раскрыть"}
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            "-"
+          )}
         </div>
       </TableCell>
 
